@@ -699,6 +699,10 @@ a:hover {
 .crossword-cell.block {
   background: #1a1a1a;
   border-color: #1a1a1a;
+  /* Browsers omit backgrounds in print unless forced */
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  color-adjust: exact;
 }
 
 .crossword-cell .num {
@@ -1545,7 +1549,8 @@ a:hover {
 }
 
 .page-sheet-columns {
-  flex: 1 1 auto;
+  /* flex-basis 0 so columns consume remaining sheet height after banner/folio */
+  flex: 1 1 0;
   min-height: 0;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -1556,7 +1561,8 @@ a:hover {
 .page-col {
   min-width: 0;
   min-height: 0;
-  height: 100%;
+  height: auto;
+  align-self: stretch;
   overflow: hidden;
   padding: 0 0.22rem;
   border-right: 1px solid var(--rule);
@@ -1594,12 +1600,6 @@ a:hover {
   margin-bottom: 0;
 }
 
-.sheet-unit-oversize {
-  transform: scale(var(--sheet-unit-scale, 1));
-  transform-origin: top left;
-  width: calc(100% / var(--sheet-unit-scale, 1));
-}
-
 .sheet-continued {
   font-family: var(--sans-small);
   font-size: 0.58rem;
@@ -1628,7 +1628,13 @@ a:hover {
 
 .sheet-comic-unit .comic-image,
 .sheet-comic-unit img {
-  max-height: 110px;
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  /* Cap tall strips to column height — never shrink unit fonts */
+  max-height: 8.2in;
+  object-fit: contain;
 }
 
 .sheet-section-heading .section-label,
@@ -1710,6 +1716,28 @@ body:has(#paged-edition .page-sheet) .edition-document:not(.is-source-only) {
   .sheet-unit,
   .sheet-unit * {
     color: #000 !important;
+  }
+
+  /* Crossword black squares must print solid */
+  .crossword-cell {
+    background: #fff !important;
+    border-color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  .crossword-cell.block {
+    background: #000 !important;
+    border-color: #000 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    box-shadow: inset 0 0 0 100px #000; /* extra insurance for picky printers */
+  }
+
+  .crossword-grid {
+    border-color: #000 !important;
   }
 
   .weather-print,
