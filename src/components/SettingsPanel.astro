@@ -129,6 +129,19 @@ const feedsBySection = {
       </div>
     </section>
 
+    <section class="settings-section">
+      <h3>Backup</h3>
+      <p class="settings-help">
+        Export or import lasting paper settings (ZIP, calendars, comics, RSS). The daily Grok brief is not included.
+        Files may include <strong>secret calendar URLs</strong> — treat the JSON like a password.
+      </p>
+      <div class="settings-backup-actions">
+        <button type="button" id="settings-export">Export settings</button>
+        <button type="button" id="settings-import">Import settings</button>
+        <input type="file" id="settings-import-file" accept="application/json,.json" hidden />
+      </div>
+    </section>
+
     <footer class="settings-footer">
       <button type="button" id="settings-reset">Reset defaults</button>
       <button type="button" id="settings-save" class="primary">Save &amp; refresh</button>

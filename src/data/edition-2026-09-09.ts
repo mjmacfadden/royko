@@ -22,11 +22,7 @@ export const edition: Edition = {
     },
   },
   agenda: [
-    { time: '8:30 AM', title: 'Staff meeting', note: 'Conference room B' },
-    { time: '11:00 AM', title: 'Pick up Jack', note: 'School early release' },
-    { time: '1:00 PM', title: 'Dentist — checkup', note: 'Northbrook Family Dental' },
-    { time: '5:30 PM', title: 'Dinner', note: 'Leftovers / grill if warm' },
-    { time: '7:00 PM', title: 'Read / puzzle time', note: 'Page 3 crossword' },
+    { time: '—', title: 'No valid calendar link' },
   ],
   morningRoundup: {
     headline: 'A quiet Wednesday in the North Shore',

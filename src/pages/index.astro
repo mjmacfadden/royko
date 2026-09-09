@@ -216,6 +216,9 @@ const hasWireStories =
         saveGrokBrief,
         clearGrokBrief,
         forecast7UrlForZip,
+        buildLocalStorageBundle,
+        parseLocalStorageBundle,
+        applyLocalStorageBundle,
         type PaperSettings,
         type CustomFeed,
       } from '../lib/settings';
@@ -571,12 +574,16 @@ const hasWireStories =
         </article>${roundupHtml}`;
       }
 
+      const NO_VALID_CALENDAR: { time: string; title: string; note?: string }[] = [
+        { time: '—', title: 'No valid calendar link' },
+      ];
+
       function renderAgenda(items: { time: string; title: string; note?: string }[]) {
         const root = document.querySelector('[data-live-agenda]');
         if (!root) return;
-        root.innerHTML = `<h2 class="section-label">Today's Agenda</h2>
-          <ul class="agenda-list">
-            ${(items || [])
+        const list = Array.isArray(items) ? items : NO_VALID_CALENDAR;
+        const body = list.length
+          ? list
               .map(
                 (item) => `<li>
               <span class="time">${escapeHtml(item.time)}</span>
@@ -584,8 +591,10 @@ const hasWireStories =
               ${item.note ? `<span class="note">${escapeHtml(item.note)}</span>` : ''}
             </li>`,
               )
-              .join('')}
-          </ul>`;
+              .join('')
+          : `<li><span class="time">—</span><span class="title">Nothing scheduled</span></li>`;
+        root.innerHTML = `<h2 class="section-label">Today's Agenda</h2>
+          <ul class="agenda-list">${body}</ul>`;
       }
 
       function renderGrokWeather(parsed: ParsedGrokBrief | null) {
@@ -752,7 +761,7 @@ const hasWireStories =
       async function refreshAgenda(s: PaperSettings) {
         const editionDate = document.body.dataset.editionDate || '';
         if (!s.calendars.length) {
-          renderAgenda(bootstrap.agenda || []);
+          renderAgenda(NO_VALID_CALENDAR);
           return;
         }
         try {
@@ -763,25 +772,14 @@ const hasWireStories =
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          let items = data.items || bootstrap.agenda || [];
-          if (Array.isArray(data.failed) && data.failed.length) {
-            const notes = data.failed.map(
-              (f: { id: string; error: string }) => ({
-                time: '—',
-                title: `Calendar error (${f.id})`,
-                note: f.error,
-              }),
-            );
-            // If only placeholders / empty day, show the errors clearly
-            if (data.usedFallback || !items.length) {
-              items = notes;
-            } else {
-              items = [...items, ...notes];
-            }
+          if (data.usedFallback || !Array.isArray(data.ok) || !data.ok.length) {
+            renderAgenda(NO_VALID_CALENDAR);
+            return;
           }
-          renderAgenda(items);
+          // Valid calendar(s): show real events, or an empty quiet day (no fake agenda).
+          renderAgenda(Array.isArray(data.items) ? data.items : []);
         } catch {
-          renderAgenda(bootstrap.agenda || []);
+          renderAgenda(NO_VALID_CALENDAR);
         }
       }
 
@@ -979,6 +977,60 @@ const hasWireStories =
       document.getElementById('settings-reset')?.addEventListener('click', () => {
         settings = defaultSettings();
         populateSettingsForm(settings);
+      });
+
+      document.getElementById('settings-export')?.addEventListener('click', () => {
+        const status = document.getElementById('settings-status');
+        try {
+          const bundle = buildLocalStorageBundle({ settings: readSettingsFromForm() });
+          const blob = new Blob([JSON.stringify(bundle, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          const day = new Date().toISOString().slice(0, 10);
+          a.href = url;
+          a.download = `daily-mike-settings-${day}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+          if (status) status.textContent = 'Exported settings (Grok brief not included).';
+        } catch (e) {
+          if (status) {
+            status.textContent =
+              'Export failed. ' + (e instanceof Error ? e.message : String(e));
+          }
+        }
+      });
+
+      document.getElementById('settings-import')?.addEventListener('click', () => {
+        document.getElementById('settings-import-file')?.click();
+      });
+
+      document.getElementById('settings-import-file')?.addEventListener('change', async (ev) => {
+        const status = document.getElementById('settings-status');
+        const input = ev.target as HTMLInputElement | null;
+        const file = input?.files?.[0];
+        if (!file) return;
+        try {
+          const text = await file.text();
+          const bundle = parseLocalStorageBundle(JSON.parse(text));
+          settings = applyLocalStorageBundle(bundle);
+          populateSettingsForm(settings);
+          applyComicVisibility(settings);
+          await Promise.all([
+            applyWeather(settings.zip),
+            refreshStories(settings),
+            refreshAgenda(settings),
+          ]);
+          if (status) {
+            status.textContent = `Imported settings from ${file.name} (Grok brief unchanged).`;
+          }
+        } catch (e) {
+          if (status) {
+            status.textContent =
+              'Import failed. ' + (e instanceof Error ? e.message : String(e));
+          }
+        } finally {
+          if (input) input.value = '';
+        }
       });
 
       document.getElementById('settings-save')?.addEventListener('click', async () => {

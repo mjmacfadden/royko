@@ -258,8 +258,7 @@ export function placeholderAgenda(): AgendaItem[] {
   return [
     {
       time: '—',
-      title: 'Add a public calendar ICS URL in Settings',
-      note: 'Paste public ICS, iCal, or Google embed URL in Settings',
+      title: 'No valid calendar link',
     },
   ];
 }
@@ -302,14 +301,26 @@ export async function fetchMergedAgenda(opts: {
     }),
   );
 
-  const today = eventsForChicagoDay(all, editionDate);
-  if (!today.length) {
+  // No working calendar → empty-state message (never invent events).
+  if (!ok.length) {
     return {
       items: opts.fallback?.length ? opts.fallback : placeholderAgenda(),
       editionDate,
       ok,
       failed,
       usedFallback: true,
+    };
+  }
+
+  const today = eventsForChicagoDay(all, editionDate);
+  if (!today.length) {
+    // Valid link(s), just nothing on the edition day.
+    return {
+      items: [],
+      editionDate,
+      ok,
+      failed,
+      usedFallback: false,
     };
   }
 

@@ -1118,6 +1118,24 @@ a:hover {
   gap: 0.35rem;
 }
 
+.settings-backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.settings-backup-actions button {
+  appearance: none;
+  border: 1px solid #1a1a1a;
+  background: transparent;
+  font: inherit;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+}
+
 .settings-footer {
   display: flex;
   justify-content: space-between;

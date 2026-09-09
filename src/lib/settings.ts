@@ -118,6 +118,96 @@ export function clearGrokBrief(): void {
   localStorage.removeItem(GROK_BRIEF_STORAGE_KEY);
 }
 
+/** Portable backup of lasting paper settings (not the daily Grok brief). */
+export const LOCAL_STORAGE_BUNDLE_VERSION = 1;
+export const LOCAL_STORAGE_BUNDLE_APP = 'the-daily-mike';
+
+export interface LocalStorageBundle {
+  version: number;
+  app: string;
+  exportedAt: string;
+  settings: PaperSettings;
+}
+
+export function buildLocalStorageBundle(opts?: { settings?: PaperSettings }): LocalStorageBundle {
+  return {
+    version: LOCAL_STORAGE_BUNDLE_VERSION,
+    app: LOCAL_STORAGE_BUNDLE_APP,
+    exportedAt: new Date().toISOString(),
+    settings: opts?.settings ?? loadSettings(),
+  };
+}
+
+/** Normalize a settings object the same way loadSettings does. */
+export function normalizePaperSettings(parsed: Partial<PaperSettings> | null | undefined): PaperSettings {
+  const base = defaultSettings();
+  if (!parsed || typeof parsed !== 'object') return base;
+  const enabledFeedIds = Array.isArray(parsed.enabledFeedIds)
+    ? parsed.enabledFeedIds.filter((id) => typeof id === 'string')
+    : base.enabledFeedIds;
+  const rssEnabled =
+    typeof parsed.rssEnabled === 'boolean'
+      ? parsed.rssEnabled
+      : enabledFeedIds.length > 0 ||
+        (Array.isArray(parsed.customFeeds) && parsed.customFeeds.length > 0);
+  return {
+    zip: typeof parsed.zip === 'string' && /^\d{5}$/.test(parsed.zip) ? parsed.zip : base.zip,
+    rssEnabled,
+    enabledFeedIds,
+    customFeeds: Array.isArray(parsed.customFeeds)
+      ? parsed.customFeeds.filter(
+          (f) => f && typeof f.url === 'string' && f.url.startsWith('http'),
+        )
+      : [],
+    enabledComicIds: Array.isArray(parsed.enabledComicIds)
+      ? parsed.enabledComicIds.filter((id) => typeof id === 'string')
+      : base.enabledComicIds,
+    calendars: Array.isArray(parsed.calendars)
+      ? parsed.calendars.filter(
+          (c) => c && typeof c.url === 'string' && c.url.startsWith('http'),
+        )
+      : [],
+  };
+}
+
+export function parseLocalStorageBundle(raw: unknown): LocalStorageBundle {
+  if (!raw || typeof raw !== 'object') throw new Error('Invalid backup file');
+  const obj = raw as Record<string, unknown>;
+  const looksLikeSettings =
+    'zip' in obj || 'calendars' in obj || 'enabledComicIds' in obj || 'rssEnabled' in obj;
+  const hasBundleFields = 'settings' in obj || obj.app === LOCAL_STORAGE_BUNDLE_APP;
+
+  if (hasBundleFields || ('version' in obj && 'settings' in obj)) {
+    if (obj.app && obj.app !== LOCAL_STORAGE_BUNDLE_APP) {
+      throw new Error('Not a The Daily Mike settings backup');
+    }
+    return {
+      version: typeof obj.version === 'number' ? obj.version : LOCAL_STORAGE_BUNDLE_VERSION,
+      app: LOCAL_STORAGE_BUNDLE_APP,
+      exportedAt: typeof obj.exportedAt === 'string' ? obj.exportedAt : new Date().toISOString(),
+      settings: normalizePaperSettings(obj.settings as Partial<PaperSettings>),
+    };
+  }
+
+  if (looksLikeSettings) {
+    return {
+      version: LOCAL_STORAGE_BUNDLE_VERSION,
+      app: LOCAL_STORAGE_BUNDLE_APP,
+      exportedAt: new Date().toISOString(),
+      settings: normalizePaperSettings(obj as Partial<PaperSettings>),
+    };
+  }
+
+  throw new Error('Unrecognized backup format');
+}
+
+/** Write settings into localStorage. Does not touch the daily Grok brief. */
+export function applyLocalStorageBundle(bundle: LocalStorageBundle): PaperSettings {
+  const settings = normalizePaperSettings(bundle.settings);
+  saveSettings(settings);
+  return settings;
+}
+
 export function wundergroundUrlForZip(zip: string): string {
   return `https://www.wunderground.com/weather/us/il/northbrook/${zip}`;
 }
