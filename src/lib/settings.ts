@@ -2,7 +2,6 @@
  * Client settings shape for The Daily Mike.
  * Persisted in localStorage; structured for future sync.
  */
-import { NEWS_FEEDS } from '../data/feeds';
 import { DEFAULT_ENABLED_COMIC_IDS } from '../data/feeds/comics';
 import type { CalendarSource } from './calendar';
 
@@ -24,7 +23,12 @@ export interface GrokBriefStore {
 
 export interface PaperSettings {
   zip: string;
-  /** Built-in feed ids that are enabled */
+  /**
+   * When false (default), news columns come from the Grok brief only.
+   * RSS code remains available; enable feeds in Settings to opt back in.
+   */
+  rssEnabled: boolean;
+  /** Built-in feed ids that are enabled (ignored when rssEnabled is false) */
   enabledFeedIds: string[];
   customFeeds: CustomFeed[];
   /** Comic source ids (xkcd, smbc, oatmeal) */
@@ -33,13 +37,12 @@ export interface PaperSettings {
   calendars: CalendarSource[];
 }
 
-/** Sensible defaults — Northbrook ZIP, a few feeds on. */
+/** Sensible defaults — Northbrook ZIP, RSS off (Grok is the news backbone). */
 export function defaultSettings(): PaperSettings {
-  const preferred = ['npr-news', 'bbc-world', 'nyt-home', 'ars', 'espn', 'npr-also'];
-  const available = new Set(NEWS_FEEDS.map((f) => f.id));
   return {
     zip: '60062',
-    enabledFeedIds: preferred.filter((id) => available.has(id)),
+    rssEnabled: false,
+    enabledFeedIds: [],
     customFeeds: [],
     enabledComicIds: [...DEFAULT_ENABLED_COMIC_IDS],
     calendars: [],
@@ -53,11 +56,18 @@ export function loadSettings(): PaperSettings {
     if (!raw) return defaultSettings();
     const parsed = JSON.parse(raw) as Partial<PaperSettings>;
     const base = defaultSettings();
+    const enabledFeedIds = Array.isArray(parsed.enabledFeedIds)
+      ? parsed.enabledFeedIds.filter((id) => typeof id === 'string')
+      : base.enabledFeedIds;
+    // Explicit flag wins; otherwise infer from whether any feeds are checked
+    const rssEnabled =
+      typeof parsed.rssEnabled === 'boolean'
+        ? parsed.rssEnabled
+        : enabledFeedIds.length > 0 || (Array.isArray(parsed.customFeeds) && parsed.customFeeds.length > 0);
     return {
       zip: typeof parsed.zip === 'string' && /^\d{5}$/.test(parsed.zip) ? parsed.zip : base.zip,
-      enabledFeedIds: Array.isArray(parsed.enabledFeedIds)
-        ? parsed.enabledFeedIds.filter((id) => typeof id === 'string')
-        : base.enabledFeedIds,
+      rssEnabled,
+      enabledFeedIds,
       customFeeds: Array.isArray(parsed.customFeeds)
         ? parsed.customFeeds.filter(
             (f) => f && typeof f.url === 'string' && f.url.startsWith('http'),
@@ -111,3 +121,16 @@ export function clearGrokBrief(): void {
 export function wundergroundUrlForZip(zip: string): string {
   return `https://www.wunderground.com/weather/us/il/northbrook/${zip}`;
 }
+
+/** Northbrook weatherwidget / forecast7 URL (current fixed embed). */
+export function forecast7UrlForNorthbrook(): string {
+  return 'https://forecast7.com/en/42d13n87d83/northbrook/';
+}
+
+/** Reserved: map ZIP → forecast7 later if settings ZIP should drive the widget. */
+export function forecast7UrlForZip(zip: string): string {
+  if (zip === '60062') return forecast7UrlForNorthbrook();
+  // Placeholder until ZIP→lat/lon mapping exists
+  return forecast7UrlForNorthbrook();
+}
+

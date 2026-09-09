@@ -25,11 +25,17 @@ import PageFolio from '../components/PageFolio.astro';
 import AnswersQr from '../components/AnswersQr.astro';
 import SettingsPanel from '../components/SettingsPanel.astro';
 
-const { edition, feedStatus, comicsLive } = await buildLiveEdition(latestEdition);
+const { edition, feedStatus, comicsLive, rssEnabled } = await buildLiveEdition(latestEdition);
 const editionDate = new Date(`${edition.date}T12:00:00`);
 const puzzles = puzzlesForDate(editionDate);
 const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.section }));
 const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
+const hasWireStories =
+  Boolean(edition.leadStory?.title) ||
+  edition.alsoToday.length > 0 ||
+  edition.news.length > 0 ||
+  edition.businessTech.length > 0 ||
+  edition.sports.length > 0;
 ---
 
 <!doctype html>
@@ -51,6 +57,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
   </head>
   <body
     data-edition-date={edition.date}
+    data-rss-enabled={rssEnabled ? '1' : '0'}
     data-feed-ok={feedStatus.ok.join(',')}
     data-feed-failed={feedStatus.failed.map((f) => f.id).join(',')}
   >
@@ -72,7 +79,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
     <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
       <h2>Paste Grok Automation brief</h2>
-      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body — interleaves with RSS as Brief cards (never a plain-text dump). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
+      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body — fills the paper (Grok is the news backbone). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
       <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
@@ -90,29 +97,48 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           number={edition.number}
           pageLabel="Morning Edition · Page 1"
         />
+        <WeatherWidget weather={edition.weather} />
         <div class="page1-grid">
           <div>
-            <WeatherWidget weather={edition.weather} />
             <div data-grok-weather></div>
             <Agenda items={edition.agenda} />
             <div data-grok-watch></div>
           </div>
           <div class="page1-main" data-live-lead>
-            <LeadStory story={edition.leadStory} />
-            {edition.morningRoundup && (
-              <MorningRoundup
-                headline={edition.morningRoundup.headline}
-                paragraphs={edition.morningRoundup.paragraphs}
-                imageCaption={edition.morningRoundup.imageCaption}
-              />
+            {hasWireStories && edition.leadStory.title ? (
+              <>
+                <LeadStory story={edition.leadStory} />
+                {edition.morningRoundup && (
+                  <MorningRoundup
+                    headline={edition.morningRoundup.headline}
+                    paragraphs={edition.morningRoundup.paragraphs}
+                    imageCaption={edition.morningRoundup.imageCaption}
+                  />
+                )}
+              </>
+            ) : (
+              <div class="empty-edition" data-empty-edition>
+                <h2 class="section-label">Morning edition</h2>
+                <p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p>
+                <p class="empty-edition-hint screen-only">Use <strong>Paste brief</strong> in the toolbar, or Settings → Grok Automation brief.</p>
+              </div>
             )}
           </div>
           <div data-live-also>
-            <AlsoToday stories={edition.alsoToday} />
+            {hasWireStories && edition.alsoToday.length ? (
+              <AlsoToday stories={edition.alsoToday} />
+            ) : (
+              <section class="also-today empty-column" aria-label="Also today">
+                <h2 class="section-label">Also today · Local</h2>
+                <p class="empty-edition-msg">Awaiting Grok brief</p>
+              </section>
+            )}
           </div>
         </div>
         <p class="feed-status-note screen-only">
-          RSS: {feedStatus.ok.length ? `live (${feedStatus.ok.join(', ')})` : 'placeholders'}
+          {rssEnabled
+            ? `RSS: ${feedStatus.ok.length ? `live (${feedStatus.ok.join(', ')})` : 'on · no items'}`
+            : 'RSS disabled · Grok brief fills news'}
           {feedStatus.failed.length > 0 && ` · skipped ${feedStatus.failed.map((f) => f.id).join(', ')}`}
           {comicsLive ? ' · comics live' : ' · comics fallback'}
         </p>
@@ -129,19 +155,31 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         />
         <div class="page2-grid">
           <div data-live-news>
-            <StoryColumn label="News" stories={edition.news} />
+            {hasWireStories && edition.news.length ? (
+              <StoryColumn label="News" stories={edition.news} />
+            ) : (
+              <section class="story-column empty-column"><h2 class="section-label">News</h2><p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p></section>
+            )}
           </div>
           <div data-live-biz>
-            <StoryColumn label="Business · Tech" stories={edition.businessTech} />
+            {hasWireStories && edition.businessTech.length ? (
+              <StoryColumn label="Business · Tech" stories={edition.businessTech} />
+            ) : (
+              <section class="story-column empty-column"><h2 class="section-label">Business · Tech · Markets</h2><p class="empty-edition-msg">Awaiting Grok brief</p></section>
+            )}
           </div>
           <div data-live-sports>
-            <StoryColumn label="Sports" stories={edition.sports} />
+            {hasWireStories && edition.sports.length ? (
+              <StoryColumn label="Sports" stories={edition.sports} />
+            ) : (
+              <section class="story-column empty-column"><h2 class="section-label">Sports</h2><p class="empty-edition-msg">Awaiting Grok brief</p></section>
+            )}
           </div>
         </div>
         <PageFolio page={2} />
       </section>
 
-      <!-- PAGE 3 -->
+      <!-- PAGE 3 — features: games band + comics band -->
       <section class="newspaper-page" data-page="3" aria-label="Page 3">
         <Masthead
           dateDisplay={edition.dateDisplay}
@@ -149,19 +187,27 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           number={edition.number}
           pageLabel="Puzzles & Features · Page 3"
         />
-        <div class="page3-grid">
-          <div>
-            <CrosswordPuzzle puzzle={puzzles.crossword} />
-            <JumblePuzzle puzzle={puzzles.jumble} />
+        <div class="page3-features">
+          <div class="games-band" aria-label="Games">
+            <div class="game-cell game-crossword">
+              <CrosswordPuzzle puzzle={puzzles.crossword} />
+            </div>
+            <div class="game-cell game-jumble">
+              <JumblePuzzle puzzle={puzzles.jumble} />
+            </div>
+            <div class="game-cell game-trivia">
+              <SportsTrivia trivia={puzzles.trivia} />
+              <AnswersQr date={edition.date} />
+            </div>
+            <div class="game-cell game-draw">
+              <HowToDraw lesson={edition.drawingLesson} />
+            </div>
+            <div class="game-cell game-history">
+              <TodayInHistory history={edition.todayInHistory} birthdays={edition.birthdays} />
+            </div>
           </div>
-          <div data-live-comics>
+          <div class="comics-band" aria-label="Comics" data-live-comics>
             {edition.comics.map((c) => <ComicStrip comic={c} />)}
-            <SportsTrivia trivia={puzzles.trivia} />
-          </div>
-          <div>
-            <AnswersQr date={edition.date} />
-            <HowToDraw lesson={edition.drawingLesson} />
-            <TodayInHistory history={edition.todayInHistory} birthdays={edition.birthdays} />
           </div>
         </div>
         <PageFolio page={3} />
@@ -172,12 +218,14 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
     <script id="comic-catalog" type="application/json" set:html={JSON.stringify(comicCatalog)} />
     <script id="edition-bootstrap" type="application/json" set:html={JSON.stringify({
       date: edition.date,
-      lead: edition.leadStory,
+      lead: edition.leadStory?.title ? edition.leadStory : null,
       alsoToday: edition.alsoToday,
       news: edition.news,
       businessTech: edition.businessTech,
       sports: edition.sports,
       agenda: edition.agenda,
+      weatherFallback: edition.weather.fallback,
+      rssEnabled,
     })} />
 
     <script>
@@ -188,7 +236,6 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         loadGrokBrief,
         saveGrokBrief,
         clearGrokBrief,
-        wundergroundUrlForZip,
         type PaperSettings,
         type CustomFeed,
       } from '../lib/settings';
@@ -243,10 +290,8 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
       function applyWeather(zip: string) {
         const zipEl = document.querySelector('[data-weather-zip]');
-        const link = document.querySelector('[data-weather-link]') as HTMLAnchorElement | null;
         const label = document.querySelector('[data-weather-label]');
         if (zipEl) zipEl.textContent = zip;
-        if (link) link.href = wundergroundUrlForZip(zip);
         if (label && zip === '60062') label.textContent = 'Northbrook, IL';
         else if (label) label.textContent = `ZIP ${zip}`;
       }
@@ -271,20 +316,23 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         </article>`;
       }
 
-      function briefHtml(s: BriefStoryCard) {
-        return storyHtml({
-          title: s.title,
-          description: s.description,
-          source: s.source,
-          brief: true,
-        });
+      function emptyColumnHtml(label: string, msg = 'Paste today’s Grok brief to fill the paper') {
+        return `<section class="story-column empty-column"><h2 class="section-label">${label}</h2><p class="empty-edition-msg">${escapeHtml(msg)}</p></section>`;
+      }
+
+      function emptyLeadHtml() {
+        return `<div class="empty-edition" data-empty-edition>
+          <h2 class="section-label">Morning edition</h2>
+          <p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p>
+          <p class="empty-edition-hint screen-only">Use <strong>Paste brief</strong> in the toolbar, or Settings → Grok Automation brief.</p>
+        </div>`;
       }
 
       function renderColumn(rootSel: string, label: string, stories: any[]) {
         const root = document.querySelector(rootSel);
         if (!root) return;
         if (!stories?.length) {
-          root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2><p class="deck">No stories for today’s filters.</p></section>`;
+          root.innerHTML = emptyColumnHtml(label);
           return;
         }
         root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2>${stories.map((s) => storyHtml(s)).join('')}</section>`;
@@ -293,8 +341,15 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
       function renderAlso(stories: any[]) {
         const root = document.querySelector('[data-live-also]');
         if (!root) return;
+        if (!stories?.length) {
+          root.innerHTML = `<section class="also-today empty-column" aria-label="Also today">
+            <h2 class="section-label">Also today · Local</h2>
+            <p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p>
+          </section>`;
+          return;
+        }
         root.innerHTML = `<section class="also-today" aria-label="Also today">
-          <h2 class="section-label">Also today</h2>
+          <h2 class="section-label">Also today · Local</h2>
           ${(stories || [])
             .map(
               (s) => `<article class="brief ${s.brief ? 'brief-item' : ''}">
@@ -307,15 +362,27 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         </section>`;
       }
 
-      /** Pass clearRoundup=true to drop SSR/prior brief roundup (failed/cleared paste). */
       function renderLead(
-        story: any,
+        story: any | null,
         grokLede?: string | null,
         grokRoundupParas?: string[],
         clearRoundup = false,
       ) {
         const root = document.querySelector('[data-live-lead]');
-        if (!root || !story) return;
+        if (!root) return;
+        if (!story || !story.title) {
+          let roundupHtml = '';
+          if (grokLede || (grokRoundupParas && grokRoundupParas.length)) {
+            const paras = grokRoundupParas?.length ? grokRoundupParas : grokLede ? [grokLede] : [];
+            roundupHtml = `<aside class="roundup-box brief-item" aria-label="Morning brief">
+              <div class="kicker">Brief · Morning roundup</div>
+              <h3 style="font-family: var(--serif-display); font-size: 1.05rem; margin: 0 0 0.25rem;">From the Automation</h3>
+              ${paras.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+            </aside>`;
+          }
+          root.innerHTML = roundupHtml || emptyLeadHtml();
+          return;
+        }
         let roundupHtml = '';
         if (grokLede || (grokRoundupParas && grokRoundupParas.length)) {
           const paras = grokRoundupParas?.length
@@ -333,10 +400,10 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           if (existing) roundupHtml = existing.outerHTML;
         }
         root.innerHTML = `<article class="lead-story">
-          <h2 class="section-label">Lead · From the wires</h2>
-          <h2><a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a></h2>
-          <p class="lead-deck">${escapeHtml(story.description)}</p>
-          <p class="lead-meta">${escapeHtml(story.source)}</p>
+          <h2 class="section-label">Lead</h2>
+          <h2>${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
+          <p class="lead-deck">${escapeHtml(story.description || '')}</p>
+          <p class="lead-meta">${escapeHtml(story.source || '')}</p>
         </article>${roundupHtml}`;
       }
 
@@ -359,19 +426,30 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
       function renderGrokWeather(parsed: ParsedGrokBrief | null) {
         const root = document.querySelector('[data-grok-weather]');
-        if (!root) return;
+        const printBody = document.querySelector('[data-print-weather-body]') as HTMLElement | null;
         const weather = parsed?.sections.find((s) => s.kind === 'weather');
-        if (!weather || (!weather.paragraphs.length && !weather.items.length)) {
+        const body =
+          weather && (weather.paragraphs.length || weather.items.length)
+            ? weather.paragraphs.join(' ') ||
+              weather.items.map((i) => `${i.headline}. ${i.body}`).join(' ')
+            : '';
+        if (!root) return;
+        if (!body) {
           root.innerHTML = '';
+          if (printBody) {
+            printBody.textContent = '';
+            printBody.hidden = true;
+          }
           return;
         }
-        const body =
-          weather.paragraphs.join(' ') ||
-          weather.items.map((i) => `${i.headline}. ${i.body}`).join(' ');
         root.innerHTML = `<aside class="grok-weather-box brief-item">
           <h2 class="section-label">Brief · Weather</h2>
           <p>${escapeHtml(body)}</p>
         </aside>`;
+        if (printBody) {
+          printBody.textContent = body;
+          printBody.hidden = false;
+        }
       }
 
       function renderGrokWatch(parsed: ParsedGrokBrief | null) {
@@ -394,19 +472,29 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         return (stories || []).map((s) => ({ ...s, brief: false, column }));
       }
 
+      /** Grok maps directly to columns; RSS only if settings.rssEnabled. */
       function composeEdition(rss: any, grok: ParsedGrokBrief | null) {
-        const newsRss = asBriefCards(rss.news || [], 'news');
-        const bizRss = asBriefCards(rss.businessTech || [], 'businessTech');
-        const sportsRss = asBriefCards(rss.sports || [], 'sports');
-        const alsoRss = asBriefCards(rss.alsoToday || [], 'also');
-        const lead = rss.lead?.[0] || rss.news?.[0] || bootstrap.lead;
+        const useRss = settings.rssEnabled === true;
+        const newsRss = useRss ? asBriefCards(rss?.news || [], 'news') : [];
+        const bizRss = useRss ? asBriefCards(rss?.businessTech || [], 'businessTech') : [];
+        const sportsRss = useRss ? asBriefCards(rss?.sports || [], 'sports') : [];
+        const alsoRss = useRss ? asBriefCards(rss?.alsoToday || [], 'also') : [];
+        const leadRss = useRss ? rss?.lead?.[0] || rss?.news?.[0] || null : null;
 
         if (!grok) {
-          if (lead) renderLead(lead, null, [], true);
-          renderAlso(alsoRss.slice(0, 5));
-          renderColumn('[data-live-news]', 'News', newsRss.slice(0, 5));
-          renderColumn('[data-live-biz]', 'Business · Tech', bizRss.slice(0, 5));
-          renderColumn('[data-live-sports]', 'Sports', sportsRss.slice(0, 5));
+          if (useRss && leadRss) {
+            renderLead(leadRss, null, [], true);
+            renderAlso(alsoRss.slice(0, 5));
+            renderColumn('[data-live-news]', 'News', newsRss.slice(0, 5));
+            renderColumn('[data-live-biz]', 'Business · Tech', bizRss.slice(0, 5));
+            renderColumn('[data-live-sports]', 'Sports', sportsRss.slice(0, 5));
+          } else {
+            renderLead(null, null, [], true);
+            renderAlso([]);
+            renderColumn('[data-live-news]', 'News', []);
+            renderColumn('[data-live-biz]', 'Business · Tech · Markets', []);
+            renderColumn('[data-live-sports]', 'Sports', []);
+          }
           renderGrokWeather(null);
           renderGrokWatch(null);
           return;
@@ -418,20 +506,37 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         const briefSports = cards.filter((c) => c.column === 'sports').map((c) => ({ ...c, brief: true, url: undefined }));
         const briefBiz = cards.filter((c) => c.column === 'businessTech').map((c) => ({ ...c, brief: true, url: undefined }));
 
-        // Lede + optional first national item already in columns — roundup from lede only
-        renderLead(lead, grok.lede, []);
+        // Lead: first national/brief item, or RSS lead if enabled
+        const leadFromGrok = briefNews[0]
+          ? { title: briefNews[0].title, description: briefNews[0].description, source: briefNews[0].source, url: undefined }
+          : null;
+        const newsRest = briefNews.slice(leadFromGrok && !useRss ? 1 : 0);
+
+        renderLead(leadFromGrok || leadRss, grok.lede, []);
         renderGrokWeather(grok);
         renderGrokWatch(grok);
 
-        // Interleave: Brief item, RSS item, …
-        renderAlso(interleave(briefAlso, alsoRss).slice(0, 6));
-        renderColumn('[data-live-news]', 'News', interleave(briefNews, newsRss).slice(0, 6));
-        renderColumn('[data-live-biz]', 'Business · Tech', interleave(briefBiz, bizRss).slice(0, 6));
-        renderColumn('[data-live-sports]', 'Sports', interleave(briefSports, sportsRss).slice(0, 6));
+        if (useRss) {
+          renderAlso(interleave(briefAlso, alsoRss).slice(0, 6));
+          renderColumn('[data-live-news]', 'News', interleave(newsRest, newsRss).slice(0, 6));
+          renderColumn('[data-live-biz]', 'Business · Tech', interleave(briefBiz, bizRss).slice(0, 6));
+          renderColumn('[data-live-sports]', 'Sports', interleave(briefSports, sportsRss).slice(0, 6));
+        } else {
+          renderAlso(briefAlso.slice(0, 6));
+          renderColumn('[data-live-news]', 'News', newsRest.slice(0, 6));
+          renderColumn('[data-live-biz]', 'Business · Tech · Markets', briefBiz.slice(0, 6));
+          renderColumn('[data-live-sports]', 'Sports', briefSports.slice(0, 6));
+        }
       }
 
       async function refreshStories(s: PaperSettings) {
         const status = document.getElementById('settings-status');
+        if (!s.rssEnabled) {
+          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [] };
+          composeEdition(lastRss, lastGrok);
+          if (status) status.textContent = 'RSS disabled · paper uses Grok brief';
+          return;
+        }
         if (status) status.textContent = 'Refreshing feeds…';
         const editionDate = document.body.dataset.editionDate || '';
         try {
@@ -448,10 +553,10 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
           lastRss = {
-            news: data.news?.length ? data.news.slice(0, 5) : bootstrap.news || [],
-            businessTech: data.businessTech?.length ? data.businessTech.slice(0, 5) : bootstrap.businessTech || [],
-            sports: data.sports?.length ? data.sports.slice(0, 5) : bootstrap.sports || [],
-            lead: data.lead?.length ? data.lead : data.news?.length ? [data.news[0]] : [bootstrap.lead],
+            news: data.news?.length ? data.news.slice(0, 5) : [],
+            businessTech: data.businessTech?.length ? data.businessTech.slice(0, 5) : [],
+            sports: data.sports?.length ? data.sports.slice(0, 5) : [],
+            lead: data.lead?.length ? data.lead : data.news?.length ? [data.news[0]] : [],
             alsoToday: data.alsoToday?.length
               ? data.alsoToday.slice(0, 5)
               : (data.news || []).slice(1, 5),
@@ -463,18 +568,11 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
               (data.failedFeeds?.length ? ` · ${data.failedFeeds.length} skipped` : '');
           }
         } catch (e) {
-          lastRss = {
-            news: bootstrap.news || [],
-            businessTech: bootstrap.businessTech || [],
-            sports: bootstrap.sports || [],
-            lead: bootstrap.lead ? [bootstrap.lead] : [],
-            alsoToday: bootstrap.alsoToday || [],
-          };
+          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [] };
           composeEdition(lastRss, lastGrok);
           if (status) {
             status.textContent =
-              'Could not refresh via API (using printed edition). ' +
-              (e instanceof Error ? e.message : String(e));
+              'Could not refresh RSS. ' + (e instanceof Error ? e.message : String(e));
           }
         }
       }
@@ -539,7 +637,6 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         const parsed = parseGrokBrief(trimmed);
 
         if (!parsed.structured) {
-          // Keep paste in storage so Mike can fix it, but do not dump raw onto the paper
           lastGrok = null;
           composeEdition(lastRss, null);
           setGrokStatus(
@@ -554,7 +651,9 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         composeEdition(lastRss, lastGrok);
         const n = grokItemsAsStories(lastGrok).length;
         setGrokStatus(
-          `Brief composed · ${lastGrok.sections.length} sections · ${n} stories interleaved with RSS`,
+          settings.rssEnabled
+            ? `Brief composed · ${lastGrok.sections.length} sections · ${n} stories (+ optional RSS)`
+            : `Brief composed · ${lastGrok.sections.length} sections · ${n} stories`,
         );
         showPage(1);
       }
@@ -599,9 +698,21 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         });
       }
 
+      function syncRssGroupsDisabled() {
+        const master = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
+        const groups = document.getElementById('settings-feed-groups');
+        const on = Boolean(master?.checked);
+        if (groups) groups.classList.toggle('is-disabled', !on);
+        document.querySelectorAll<HTMLInputElement>('input[name="feed"]').forEach((cb) => {
+          cb.disabled = !on;
+        });
+      }
+
       function populateSettingsForm(s: PaperSettings) {
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         if (zipInput) zipInput.value = s.zip;
+        const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
+        if (rssMaster) rssMaster.checked = s.rssEnabled === true;
         document.querySelectorAll<HTMLInputElement>('input[name="feed"]').forEach((cb) => {
           cb.checked = s.enabledFeedIds.includes(cb.value);
         });
@@ -612,6 +723,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         calendars = [...s.calendars];
         renderCustomList();
         renderCalendarsList();
+        syncRssGroupsDisabled();
         const grokStore = loadGrokBrief();
         const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
         if (ta) ta.value = grokStore?.text || '';
@@ -620,16 +732,21 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
       function readSettingsFromForm(): PaperSettings {
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         const zip = (zipInput?.value || '60062').trim();
-        const enabledFeedIds = Array.from(
-          document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
-        ).map((cb) => cb.value);
+        const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
+        const rssEnabled = Boolean(rssMaster?.checked);
+        const enabledFeedIds = rssEnabled
+          ? Array.from(
+              document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
+            ).map((cb) => cb.value)
+          : [];
         const enabledComicIds = Array.from(
           document.querySelectorAll<HTMLInputElement>('input[name="comic"]:checked'),
         ).map((cb) => cb.value);
         return {
           zip: /^\d{5}$/.test(zip) ? zip : '60062',
+          rssEnabled,
           enabledFeedIds,
-          customFeeds: [...customFeeds],
+          customFeeds: rssEnabled ? [...customFeeds] : [],
           enabledComicIds,
           calendars: [...calendars],
         };
@@ -640,6 +757,8 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         populateSettingsForm(settings);
         dialog?.showModal();
       });
+
+      document.getElementById('settings-rss-enabled')?.addEventListener('change', syncRssGroupsDisabled);
 
       document.getElementById('custom-feed-add-btn')?.addEventListener('click', () => {
         const name = (document.getElementById('custom-feed-name') as HTMLInputElement)?.value.trim() || 'Custom';
@@ -688,11 +807,9 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
       document.getElementById('grok-brief-sample')?.addEventListener('click', async () => {
         try {
           const res = await fetch('/samples/grok-brief-example.md');
-          // Prefer importing via static path — also try data URL from settings help
           let text = '';
           if (res.ok) text = await res.text();
           else {
-            // inline minimal fallback pointing user to fixture
             text = (document.getElementById('grok-brief-input') as HTMLTextAreaElement)?.value || '';
           }
           const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
@@ -703,7 +820,6 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         }
       });
 
-      // Quick paste panel
       const pastePanel = document.getElementById('grok-paste-panel');
       document.getElementById('open-grok-paste')?.addEventListener('click', () => {
         const store = loadGrokBrief();
@@ -722,17 +838,12 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         pastePanel?.setAttribute('hidden', '');
       });
 
-      // Boot: weather, optional grok, calendars, settings-driven RSS
-
       function applyComicVisibility(s: PaperSettings) {
         const enabled = new Set(s.enabledComicIds);
         document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box').forEach((box) => {
-          const label = box.getAttribute('aria-label') || '';
-          // Match by section label text against catalog titles is fragile; use data-comic-id if present
           const id = box.dataset.comicId;
           if (id) box.style.display = enabled.has(id) ? '' : 'none';
           else {
-            // fallback: hide if title not in enabled set by matching known titles
             const title = (box.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
             const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal' };
             const cid = map[title];
@@ -758,19 +869,15 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           composeEdition(lastRss, lastGrok);
         } else {
           lastGrok = null;
-          // Leave RSS as bootstrap; surface warning quietly in status if settings open later
+          composeEdition(lastRss, null);
           const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
           if (ta) ta.value = storedGrok.text;
         }
+      } else {
+        composeEdition(lastRss, null);
       }
 
-      const defaults = defaultSettings();
-      const differs =
-        settings.zip !== defaults.zip ||
-        settings.enabledFeedIds.slice().sort().join() !== defaults.enabledFeedIds.slice().sort().join() ||
-        settings.customFeeds.length > 0 ||
-        settings.calendars.length > 0;
-      if (differs) refreshStories(settings);
+      if (settings.rssEnabled) refreshStories(settings);
       if (settings.calendars.length) refreshAgenda(settings);
     </script>
   </body>

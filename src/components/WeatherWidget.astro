@@ -4,33 +4,35 @@ interface Props {
   weather: WeatherConfig;
 }
 const { weather } = Astro.props;
-const iframeSrc = weather.embedSrc || null;
+/** Fixed Northbrook forecast7 embed per Mike; ZIP settings may drive a different URL later. */
+const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
 ---
-<section class="weather-widget" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
-  <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
-  {iframeSrc ? (
-    <iframe
-      class="wu-frame"
-      title={`Weather Underground — ${weather.locationLabel}`}
-      src={iframeSrc}
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-    ></iframe>
-  ) : (
-    <div class="wu-embed-scaffold">
-      WU widget slot — set <code>weather.embedSrc</code> for an official embed. Until then, use the strip + link below.
-    </div>
-  )}
-  <div class="weather-fallback">
-    <div class="temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</div>
-    <div>{weather.fallback.summary} · ZIP <span data-weather-zip>{weather.zip}</span></div>
+<section class="weather-strip" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
+  <!-- Screen: weatherwidget.io interactive embed (below masthead) -->
+  <div class="weather-widget-live screen-only">
     <a
-      data-weather-link
-      href={weather.wundergroundUrl}
-      target="_blank"
-      rel="noopener noreferrer"
+      class="weatherwidget-io"
+      href={widgetHref}
+      data-label_1="NORTHBROOK"
+      data-label_2="WEATHER"
+      data-font="Arial"
+      data-icons="Climacons Animated"
+      data-mode="Current"
+      data-days="5"
+      data-theme="pure"
+      >NORTHBROOK WEATHER</a
     >
-      Weather Underground forecast →
-    </a>
+  </div>
+
+  <!-- Print / offline: compact high-low + optional Grok prose -->
+  <div class="weather-fallback" data-weather-print>
+    <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
+    <div class="temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</div>
+    <div class="weather-fallback-summary" data-weather-summary>
+      {weather.fallback.summary} · ZIP <span data-weather-zip>{weather.zip}</span>
+    </div>
+    <p class="weather-print-grok" data-print-weather-body hidden></p>
   </div>
 </section>
+
+<script is:inline src="https://weatherwidget.io/js/widget.min.js" async></script>

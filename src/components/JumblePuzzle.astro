@@ -4,10 +4,32 @@ interface Props {
   puzzle: JumbleEntry;
 }
 const { puzzle } = Astro.props;
+const scrambledLetters = puzzle.scrambled.replace(/\s+/g, '').toUpperCase().split('');
+const answerLen = puzzle.answer.replace(/\s+/g, '').length;
+const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
 ---
 <section class="jumble-box" aria-label="Jumble">
   <h2 class="section-label">Jumble</h2>
-  <p class="puzzle-clue">{puzzle.clue}</p>
-  <div class="jumble-scrambled">{puzzle.scrambled}</div>
-  <p class="puzzle-hint-note">Answers via QR → answers page</p>
+  <p class="jumble-clue">{puzzle.clue}</p>
+
+  <div class="jumble-word-block">
+    <div class="jumble-tiles" aria-label={`Scrambled: ${puzzle.scrambled}`}>
+      {scrambledLetters.map((ch) => (
+        <span class="jumble-tile">{ch}</span>
+      ))}
+    </div>
+    <div class="jumble-blanks" aria-label={`${answerLen}-letter answer blanks`}>
+      {answerBlanks.map(() => <span class="jumble-blank" />)}
+    </div>
+  </div>
+
+  <div class="jumble-final">
+    <div class="jumble-final-label">Final puzzle</div>
+    <p class="jumble-final-prompt">Arrange the answer to fit the clue above.</p>
+    <div class="jumble-final-blanks" aria-hidden="true">
+      {answerBlanks.map(() => <span class="jumble-blank jumble-blank-final" />)}
+    </div>
+  </div>
+
+  <p class="puzzle-hint-note">Answers via QR → answers page (no on-paper reveal)</p>
 </section>

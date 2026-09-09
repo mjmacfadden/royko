@@ -5,6 +5,7 @@ Personal morning newspaper for Northbrook, IL. **Not a news dashboard** — the 
 **Masthead:** THE DAILY MIKE (Manufacturing Consent + Playfair for headlines)  
 **Tagline:** Independent · Personal · Daily  
 **Location context:** Northbrook / ZIP 60062 (weather & dateline — not the paper’s name)  
+**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen; compact high/low (+ Grok weather prose) for print  
 **Sample edition:** Wednesday, September 9, 2026 · Vol. I, No. 214
 
 ## Quick start
@@ -43,11 +44,13 @@ Example: `http://localhost:4321/answers/2026-09-09`
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
 | Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
-| Live RSS ingestion (build-time + `/api/rss`) | ✅ |
+| weatherwidget.io Northbrook embed (print fallback) | ✅ |
+| Live RSS ingestion (optional; **off by default**) | ✅ code kept |
 | Settings panel (feeds, ZIP, comics, calendars, Grok brief) | ✅ localStorage |
 | Comics RSS (xkcd + SMBC + The Oatmeal) | ✅ best-effort hotlink |
 | Public ICS calendars → agenda (multi-calendar merge) | ✅ `/api/calendar` |
-| Grok Automation paste interleaved with RSS | ✅ |
+| Grok Automation paste = news backbone (RSS optional) | ✅ |
+| Page 3 games band + horizontal comics | ✅ |
 | Google Calendar OAuth | ❌ Not needed — use public ICS |
 | Auth / Supabase | ❌ Out of scope |
 
@@ -55,11 +58,13 @@ Example: `http://localhost:4321/answers/2026-09-09`
 
 Open **Settings** in the top chrome (or **Paste brief** for a quick Grok paste):
 
-1. **Grok Automation brief** — paste markdown; compose into the paper interleaved with RSS.
+1. **Grok Automation brief** — **required news backbone**; paste markdown to fill lead / news / local / sports / markets.
 2. **Public calendar ICS URLs** — add/remove; today’s events (America/Chicago) merge into the agenda.
-3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (max 3 on page).
-4. **ZIP code** for Weather Underground (default `60062`).
-5. **Built-in / custom RSS** — today-only filter via `/api/rss`.
+3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (horizontal band on page 3).
+4. **ZIP code** — default `60062` (Northbrook). The screen weather widget is currently the fixed Northbrook [weatherwidget.io / forecast7](https://forecast7.com/en/42d13n87d83/northbrook/) embed; settings ZIP may drive a different forecast7 URL later.
+5. **Built-in / custom RSS** — **disabled by default**. Opt in via “Enable RSS news” if you want wires mixed with the brief.
+
+When no Grok paste is saved, columns show: **“Paste today’s Grok brief to fill the paper.”**
 
 Prefs persist in `localStorage` (`daily-mike-settings-v1`). Grok paste: `daily-mike-grok-brief-v1`.
 
@@ -118,14 +123,15 @@ Optional masthead lines (`**The Daily Mike**`, date, timezone, lede) may appear 
 
 | Brief section | Placement |
 |---------------|-----------|
-| Weather prose | Small “Brief · Weather” under the WU strip (doesn’t replace the widget) |
-| National & World | Interleaved into **News** with RSS (`Brief` label) |
-| Illinois / Chicago | Interleaved into **Also today** |
-| Sports / Markets | Interleaved into Sports / Business · Tech |
+| Weather prose | Under the weatherwidget strip on screen; also fills the **print** weather fallback |
+| National & World | **News** (first item can lead page 1) |
+| Illinois / Chicago / Local | **Also today · Local** |
+| Sports | **Sports** |
+| Markets | **Business · Tech · Markets** |
 | What to watch | Tight list under agenda |
-| Lede | Roundup box under the lead wire story |
+| Lede | Roundup box on page 1 |
 
-RSS items keep their source attribution; Grok items show **Brief** (plus named source when present).
+Grok items show **Brief** (plus named source when present). Optional RSS (when enabled) can interleave with Brief cards.
 
 ### Public calendars (ICS)
 
@@ -142,11 +148,13 @@ No OAuth. Server route **`POST /api/calendar`** fetches ICS (avoids CORS), parse
 
 Any other `.ics` URL works the same way. Empty/failed fetches fall back to the placeholder agenda.
 
-### News / RSS
+### News / RSS (optional)
+
+**Default: RSS off.** The edition’s stories come from the parsed Grok Automation paste. Feed catalog and `/api/rss` remain for optional re-enable in Settings.
 
 Feed catalog: `src/data/feeds.ts`
 
-Starter feeds (skipped gracefully on failure):
+Starter feeds (skipped gracefully on failure when enabled):
 
 - NPR News, NPR briefs  
 - BBC World, BBC Business  
@@ -156,7 +164,7 @@ Starter feeds (skipped gracefully on failure):
 
 Normalize → `RssStory` (`src/data/types.ts`). Headlines + short excerpts + source link only — **no full-article republish**.
 
-Build merges live items in `src/lib/edition.ts` (today-first, then latest, then placeholders).
+`src/lib/edition.ts` skips news RSS by default (comics still fetch). Pass `rssEnabled: true` / Settings opt-in to merge wires.
 
 ### Puzzle answers + QR
 

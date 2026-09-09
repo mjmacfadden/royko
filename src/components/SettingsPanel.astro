@@ -20,15 +20,20 @@ const feedsBySection = {
         ZIP code
         <input type="text" name="zip" id="settings-zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" value="60062" />
       </label>
-      <p class="settings-help">Default 60062 (Northbrook). Updates the Weather Underground link.</p>
+      <p class="settings-help">
+        Default 60062 (Northbrook). The on-paper widget is currently the fixed Northbrook
+        <a href="https://forecast7.com/en/42d13n87d83/northbrook/" target="_blank" rel="noopener noreferrer">weatherwidget.io / forecast7</a>
+        embed; ZIP may drive a different forecast7 URL later.
+      </p>
     </section>
 
     <section class="settings-section">
       <h3>Grok Automation brief</h3>
       <p class="settings-help">
-        Canonical: <code>***Section***</code> headers, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body.
-        Weather/Markets = prose; What to watch = <code>-</code> bullets. Alternates: <code>##</code> sections and older <code>***hed***</code>.
-        Interleaves with RSS as Brief cards — never a plain dump. See README “Paste format”.
+        <strong>Grok is the news backbone.</strong> Canonical:
+        <code>***Section***</code> headers, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body.
+        Weather/Markets = prose; What to watch = <code>-</code> bullets. Maps straight to columns
+        (National→News, Local→Also today / Local, Sports→Sports, Markets→Business). See README.
       </p>
       <textarea id="grok-brief-input" class="grok-brief-textarea" rows="10" placeholder="***National &amp; World***&#10;&#10;**Headline**&#10;*Named source: Reuters, September 9*&#10;Body…"></textarea>
       <div class="grok-brief-actions">
@@ -55,7 +60,7 @@ const feedsBySection = {
 
     <section class="settings-section">
       <h3>Comics</h3>
-      <p class="settings-help">Opt in/out. Up to 3 strips on the puzzles page (hotlink + credit).</p>
+      <p class="settings-help">Opt in/out. Strips lay across the bottom of page 3 (hotlink + credit).</p>
       <fieldset class="settings-comics">
         <legend>Sources</legend>
         {COMIC_FEEDS.map((c) => (
@@ -68,9 +73,16 @@ const feedsBySection = {
     </section>
 
     <section class="settings-section">
-      <h3>Built-in RSS feeds</h3>
-      <p class="settings-help">Opt in/out. Items are filtered to today’s date (America/Chicago) when refreshing.</p>
-      <div class="settings-feed-groups">
+      <h3>RSS news feeds <span class="settings-badge">off by default</span></h3>
+      <p class="settings-help">
+        News columns come from the Grok paste. Leave feeds unchecked for <strong>RSS disabled</strong> mode.
+        Check feeds only if you want optional wire stories mixed back in.
+      </p>
+      <label class="settings-check settings-rss-master">
+        <input type="checkbox" name="rss-enabled" id="settings-rss-enabled" />
+        <span>Enable RSS news (optional)</span>
+      </label>
+      <div class="settings-feed-groups" id="settings-feed-groups">
         <fieldset>
           <legend>News / lead</legend>
           {feedsBySection.news.map((f) => (
@@ -103,7 +115,7 @@ const feedsBySection = {
 
     <section class="settings-section">
       <h3>Custom RSS feeds</h3>
-      <p class="settings-help">Only items published <strong>today</strong> (America/Chicago) are included.</p>
+      <p class="settings-help">Only used when RSS is enabled. Today-only filter (America/Chicago).</p>
       <div id="custom-feeds-list" class="custom-feeds-list"></div>
       <div class="custom-feed-add">
         <input type="text" id="custom-feed-name" placeholder="Name" />

@@ -198,30 +198,25 @@ a:hover {
   padding: 0 0.35rem;
 }
 
-.weather-widget {
+/* Weather strip — full width under masthead (screen widget + print fallback) */
+.weather-strip {
   border: var(--rule-thin);
-  padding: 0.35rem;
-  margin-bottom: 0.3rem;
+  padding: 0.25rem 0.35rem;
+  margin: 0 0 0.45rem;
   background: var(--paper-white);
 }
 
-.wu-embed-scaffold {
-  border: 1px dashed #999;
-  padding: 0.35rem;
-  margin-bottom: 0.3rem;
-  font-family: var(--sans-small);
-  font-size: 0.62rem;
-  letter-spacing: 0.04em;
+.weather-widget-live {
+  min-height: 0;
 }
 
-.weather-widget iframe {
+.weather-widget-live .weatherwidget-io {
+  display: block;
   width: 100%;
-  min-height: 140px;
-  border: 0;
-  background: #fff;
 }
 
 .weather-fallback {
+  display: none; /* screen uses interactive widget */
   font-family: var(--sans-small);
   font-size: 0.72rem;
   line-height: 1.3;
@@ -234,10 +229,14 @@ a:hover {
   margin: 0.1rem 0;
 }
 
-.weather-fallback a {
-  font-size: 0.62rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+.weather-fallback-summary {
+  margin: 0;
+}
+
+.weather-print-grok {
+  margin: 0.2rem 0 0;
+  font-size: 0.68rem;
+  line-height: 1.25;
 }
 
 .agenda-list {
@@ -430,7 +429,70 @@ a:hover {
   margin: 0.2rem 0;
 }
 
-/* —— Page 3: puzzles & features —— */
+/* —— Page 3: features layout (games band + comics band) —— */
+.page3-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.games-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
+.game-cell {
+  flex: 1 1 10.5rem;
+  min-width: 9.5rem;
+  border: var(--rule-thin);
+  padding: 0.35rem;
+  background: var(--paper-white);
+}
+
+.game-crossword {
+  flex: 1.35 1 12rem;
+}
+
+.game-jumble {
+  flex: 1.15 1 11rem;
+}
+
+.game-trivia {
+  flex: 0.95 1 9.5rem;
+}
+
+.game-draw,
+.game-history {
+  flex: 0.9 1 9rem;
+}
+
+.comics-band {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: stretch;
+  border-top: var(--rule-medium, 2px solid #1a1a1a);
+  padding-top: 0.4rem;
+}
+
+.comics-band .comic-box {
+  flex: 1 1 30%;
+  min-width: 8.5rem;
+  margin-bottom: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.comics-band .comic-frame {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* legacy class kept for older markup / print fallbacks */
 .page3-grid {
   display: grid;
   grid-template-columns: 1.15fr 1fr 1fr;
@@ -528,12 +590,95 @@ a:hover {
   margin: 0.25rem 0 0;
 }
 
+.jumble-clue,
+.puzzle-clue {
+  font-size: 0.72rem;
+  margin: 0 0 0.35rem;
+  font-style: italic;
+}
+
+.jumble-word-block {
+  margin: 0.2rem 0 0.35rem;
+}
+
+.jumble-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+  margin-bottom: 0.35rem;
+}
+
+.jumble-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.45rem;
+  border: 1.5px solid #1a1a1a;
+  background: #fff;
+  font-family: var(--serif-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.jumble-blanks,
+.jumble-final-blanks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.18rem;
+}
+
+.jumble-blank {
+  display: inline-block;
+  width: 1.15rem;
+  height: 1.15rem;
+  border-bottom: 2px solid #1a1a1a;
+  box-sizing: border-box;
+}
+
+.jumble-blank-final {
+  width: 1.05rem;
+  height: 1.05rem;
+}
+
+.jumble-final {
+  border-top: 1px dotted #999;
+  padding-top: 0.3rem;
+  margin-top: 0.25rem;
+}
+
+.jumble-final-label {
+  font-family: var(--sans-small);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.15rem;
+}
+
+.jumble-final-prompt {
+  font-size: 0.65rem;
+  margin: 0 0 0.25rem;
+  color: var(--ink-muted);
+}
+
 .jumble-scrambled {
   font-family: var(--serif-display);
   font-size: 1.1rem;
   letter-spacing: 0.18em;
   font-weight: 700;
   margin: 0.25rem 0;
+}
+
+.crossword-box .section-label,
+.jumble-box .section-label,
+.trivia-box .section-label {
+  margin-bottom: 0.3rem;
+}
+
+.trivia-box .trivia-question {
+  font-size: 0.78rem;
+  line-height: 1.3;
 }
 
 .comic-frame {
@@ -565,10 +710,16 @@ a:hover {
 .comic-image {
   display: block;
   max-width: 100%;
-  max-height: 95px;
+  max-height: 110px;
   width: auto;
   height: auto;
   margin: 0 auto;
+  object-fit: contain;
+}
+
+.comics-band .comic-image {
+  max-height: 100px;
+  width: 100%;
   object-fit: contain;
 }
 
@@ -914,6 +1065,14 @@ a:hover {
     grid-template-columns: 1fr 1fr;
   }
 
+  .game-cell {
+    flex: 1 1 45%;
+  }
+
+  .comics-band .comic-box {
+    flex: 1 1 45%;
+  }
+
   .page1-main {
     grid-column: 1 / -1;
     border-left: 0;
@@ -954,6 +1113,11 @@ a:hover {
     grid-template-columns: 1fr;
   }
 
+  .game-cell,
+  .comics-band .comic-box {
+    flex: 1 1 100%;
+  }
+
   .masthead-title {
     font-size: 1.45rem;
     letter-spacing: -0.01em;
@@ -966,6 +1130,52 @@ a:hover {
   }
 }
 
+
+
+/* —— Empty edition (no Grok paste yet) —— */
+.empty-edition,
+.empty-column {
+  border: 1px dashed #999;
+  padding: 0.55rem 0.45rem;
+  background: var(--paper-white);
+}
+
+.empty-edition-msg {
+  font-family: var(--serif-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0.25rem 0;
+  line-height: 1.25;
+}
+
+.empty-edition-hint {
+  font-family: var(--sans-small);
+  font-size: 0.65rem;
+  color: var(--ink-muted);
+  margin: 0.2rem 0 0;
+}
+
+.settings-badge {
+  display: inline-block;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid #999;
+  padding: 0.05rem 0.3rem;
+  margin-left: 0.25rem;
+  vertical-align: middle;
+  color: var(--ink-muted);
+}
+
+.settings-rss-master {
+  margin-bottom: 0.45rem;
+  font-weight: 700;
+}
+
+.settings-feed-groups.is-disabled {
+  opacity: 0.45;
+  pointer-events: none;
+}
 
 /* —— Brief vs RSS distinction —— */
 .brief-item .meta,
@@ -1155,10 +1365,13 @@ a:hover {
   }
 
   .page1-grid,
-  .page2-grid,
-  .page3-grid {
+  .page2-grid {
     grid-template-columns: 1fr 1fr 1fr !important;
     gap: 0.25rem;
+  }
+
+  .page3-grid {
+    display: none !important; /* superseded by .page3-features */
   }
 
   .page1-main {
@@ -1183,13 +1396,61 @@ a:hover {
     line-height: 1.25;
   }
 
-  .weather-widget iframe,
-  .wu-embed-scaffold {
+  .weather-widget-live,
+  .weatherwidget-io {
     display: none !important;
   }
 
   .weather-fallback {
     display: block !important;
+  }
+
+  .weather-strip {
+    margin-bottom: 0.3rem;
+    padding: 0.2rem 0.3rem;
+  }
+
+  .page3-features {
+    gap: 0.3rem;
+  }
+
+  .games-band {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .game-cell {
+    flex: 1 1 30%;
+    min-width: 0;
+    padding: 0.25rem;
+  }
+
+  .comics-band {
+    flex-wrap: nowrap;
+    gap: 0.25rem;
+    padding-top: 0.3rem;
+  }
+
+  .comics-band .comic-box {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .comics-band .comic-image,
+  .comic-image {
+    max-height: 88px;
+  }
+
+  .jumble-tile {
+    width: 1.15rem;
+    height: 1.2rem;
+    font-size: 0.8rem;
+  }
+
+  .empty-edition,
+  .empty-column {
+    border-style: solid;
+    padding: 0.35rem;
   }
 
   .image-placeholder,

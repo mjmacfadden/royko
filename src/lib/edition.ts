@@ -7,17 +7,62 @@ function take<T>(arr: T[], n: number): T[] {
   return arr.slice(0, n);
 }
 
+const EMPTY_LEAD: RssStory = {
+  id: 'empty-lead',
+  title: '',
+  description: '',
+  url: '#',
+  image: null,
+  source: '',
+  publishedAt: '',
+  category: 'local',
+};
+
 /**
- * Merge live RSS + comics into the sample edition.
- * Placeholders win only when a section has no live items.
- * Built-in feeds: prefer today (America/Chicago); if empty, fall back to latest items then placeholders.
+ * Build the live edition.
+ * Default: Grok is the news backbone — skip news RSS merge (placeholders cleared).
+ * Comics still fetch. Pass rssEnabled:true to restore RSS-backed news columns.
  */
-export async function buildLiveEdition(base: Edition): Promise<{
+export async function buildLiveEdition(
+  base: Edition,
+  opts: { rssEnabled?: boolean } = {},
+): Promise<{
   edition: Edition;
   feedStatus: { ok: string[]; failed: { id: string; error: string }[] };
   comicsLive: boolean;
+  rssEnabled: boolean;
 }> {
   const editionDate = base.date || chicagoDateKey();
+  const rssEnabled = opts.rssEnabled === true;
+
+  const comics = await fetchComics();
+  const comicSlots: ComicStripData[] = comics.length
+    ? comics
+    : base.comics.map((c) => ({
+        ...c,
+        imageUrl: null,
+        link: undefined,
+        live: false,
+      }));
+
+  if (!rssEnabled) {
+    const edition: Edition = {
+      ...base,
+      leadStory: EMPTY_LEAD,
+      alsoToday: [],
+      news: [],
+      businessTech: [],
+      sports: [],
+      comics: comicSlots,
+      morningRoundup: null,
+    };
+    return {
+      edition,
+      feedStatus: { ok: [], failed: [] },
+      comicsLive: comics.some((c) => c.live),
+      rssEnabled: false,
+    };
+  }
 
   let feeds = await fetchAllFeeds({
     todayOnlyBuiltIn: true,
@@ -29,8 +74,6 @@ export async function buildLiveEdition(base: Edition): Promise<{
   if (needFallback) {
     feeds = await fetchAllFeeds({ todayOnlyBuiltIn: false, editionDate });
   }
-
-  const comics = await fetchComics();
 
   const news = feeds.news.length ? take(feeds.news, 4) : base.news;
   const businessTech = feeds.businessTech.length
@@ -46,15 +89,6 @@ export async function buildLiveEdition(base: Edition): Promise<{
   if (feeds.alsoToday.length) alsoToday = take(feeds.alsoToday, 4);
   else if (feeds.news.length > 1) alsoToday = take(feeds.news.slice(1), 4);
 
-  const comicSlots: ComicStripData[] = comics.length
-    ? comics
-    : base.comics.map((c) => ({
-        ...c,
-        imageUrl: null,
-        link: undefined,
-        live: false,
-      }));
-
   const edition: Edition = {
     ...base,
     leadStory,
@@ -69,5 +103,6 @@ export async function buildLiveEdition(base: Edition): Promise<{
     edition,
     feedStatus: { ok: feeds.okFeeds, failed: feeds.failedFeeds },
     comicsLive: comics.some((c) => c.live),
+    rssEnabled: true,
   };
 }
