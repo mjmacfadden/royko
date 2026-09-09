@@ -3,6 +3,10 @@
  *
  * Digital reading view and print share the same `.page-sheet` DOM:
  * one sheet = one letter page, 3 dense columns, no hollow CSS multicol.
+ *
+ * Never scales text. Overflowing story bodies continue across columns/pages
+ * by splitting multi-child units and, when needed, splitting individual
+ * paragraphs at sentence (then word) boundaries.
  */
 
 const PAGED_HOST_ID = 'paged-edition';
@@ -163,20 +167,123 @@ function overflows(el: HTMLElement): boolean {
   return el.scrollHeight - el.clientHeight > 1.5;
 }
 
-function isSplittable(unit: HTMLElement): boolean {
-  const host = unit.firstElementChild as HTMLElement | null;
-  if (!host) return false;
-  // Prefer splitting story / brief / lead bodies with multiple block kids.
-  if (
+function isAtomicUnit(unit: HTMLElement): boolean {
+  return (
     unit.classList.contains('sheet-game-unit') ||
     unit.classList.contains('sheet-comic-unit') ||
     unit.classList.contains('sheet-section-heading') ||
     unit.classList.contains('sheet-features-heading')
-  ) {
+  );
+}
+
+function isSplittable(unit: HTMLElement): boolean {
+  const host = unit.firstElementChild as HTMLElement | null;
+  if (!host || isAtomicUnit(unit)) return false;
+  return Array.from(host.children).length >= 2;
+}
+
+function isTextSplittableElement(el: Element): boolean {
+  if (!(el instanceof HTMLElement)) return false;
+  if (el.matches('img, table, svg, figure, .story-image, .comic-frame, .comic-image')) return false;
+  if (el.querySelector('img, table, svg')) return false;
+  if (el.matches('h1, h2, h3, h4, .section-label, .kicker, .meta, .lead-meta, .sheet-continued')) {
     return false;
   }
-  const kids = Array.from(host.children);
-  return kids.length >= 2;
+  const text = (el.textContent || '').replace(/\s+/g, ' ').trim();
+  if (text.length < 24) return false;
+  return (
+    el.matches('p, .deck, .lead-deck, li, blockquote') ||
+    el.tagName === 'P' ||
+    (el.tagName === 'DIV' && !el.children.length)
+  );
+}
+
+function canTextSplit(unit: HTMLElement): boolean {
+  if (isAtomicUnit(unit)) return false;
+  const host = unit.firstElementChild as HTMLElement | null;
+  if (!host) return false;
+  return Array.from(host.children).some(isTextSplittableElement);
+}
+
+function normalizeText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/** Sentence chunks; keeps trailing punctuation with each sentence. */
+function splitIntoSentences(text: string): string[] {
+  const matches = text.match(/[^.!?]+(?:[.!?]+(?:['”"]*)?)(?:\s+|$)|[^.!?]+$/g);
+  if (!matches || matches.length <= 1) return [text];
+  return matches.map((s) => s.trim()).filter(Boolean);
+}
+
+function splitIntoWords(text: string): string[] {
+  return text.split(/\s+/).filter(Boolean);
+}
+
+function cloneShell(el: HTMLElement): HTMLElement {
+  return el.cloneNode(false) as HTMLElement;
+}
+
+function addContinuedMarker(restHost: HTMLElement, fittedHost: HTMLElement | null) {
+  const hadHeading = Boolean(
+    fittedHost?.querySelector('h1, h2, h3, .section-label, .kicker, .sheet-continued'),
+  );
+  const cont = document.createElement('p');
+  cont.className = 'sheet-continued';
+  cont.textContent = hadHeading ? '(continued)' : 'Continued from previous column';
+  restHost.appendChild(cont);
+}
+
+/**
+ * Shrink `el.textContent` to the largest sentence/word prefix that fits in `column`.
+ * Returns the leftover suffix (empty if everything fits or nothing could be kept).
+ */
+function fitTextPrefix(column: HTMLElement, el: HTMLElement, fullText: string): {
+  kept: number;
+  suffix: string;
+} {
+  const sentences = splitIntoSentences(fullText);
+  const useWords = sentences.length <= 1;
+  const parts = useWords ? splitIntoWords(fullText) : sentences;
+  if (parts.length <= 1) {
+    el.textContent = fullText;
+    return { kept: overflows(column) ? 0 : 1, suffix: overflows(column) ? fullText : '' };
+  }
+
+  let lo = 0;
+  let hi = parts.length;
+  let best = 0;
+  while (lo <= hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    el.textContent = parts.slice(0, mid).join(' ');
+    if (mid === 0) {
+      lo = 1;
+      continue;
+    }
+    if (!overflows(column)) {
+      best = mid;
+      lo = mid + 1;
+    } else {
+      hi = mid - 1;
+    }
+  }
+
+  if (best === 0) {
+    el.textContent = fullText;
+    return { kept: 0, suffix: fullText };
+  }
+
+  el.textContent = parts.slice(0, best).join(' ');
+  if (best >= parts.length) {
+    return { kept: best, suffix: '' };
+  }
+  return { kept: best, suffix: parts.slice(best).join(' ') };
+}
+
+function makeSuffixElement(source: HTMLElement, suffix: string): HTMLElement {
+  const el = cloneShell(source);
+  el.textContent = suffix;
+  return el;
 }
 
 /** Move leftover child nodes into a continued unit; keep what fits in `fitted`. */
@@ -187,25 +294,50 @@ function splitOverflowingUnit(
   const host = unit.firstElementChild as HTMLElement | null;
   if (!host) return { fitted: null, rest: unit };
 
-  const children = Array.from(host.children);
+  const children = Array.from(host.children) as HTMLElement[];
   if (children.length < 2) return { fitted: null, rest: unit };
 
   unit.remove();
 
   const fitted = document.createElement('section');
   fitted.className = unit.className;
-  const fittedHost = host.cloneNode(false) as HTMLElement;
+  const fittedHost = cloneShell(host);
   fitted.appendChild(fittedHost);
   column.appendChild(fitted);
 
   let fitCount = 0;
   for (let i = 0; i < children.length; i++) {
-    fittedHost.appendChild(children[i].cloneNode(true));
-    if (overflows(column)) {
-      fittedHost.lastElementChild?.remove();
-      break;
+    const clone = children[i].cloneNode(true) as HTMLElement;
+    fittedHost.appendChild(clone);
+    if (!overflows(column)) {
+      fitCount += 1;
+      continue;
     }
-    fitCount += 1;
+
+    // Whole child does not fit — try splitting its text so headline + first chunk stay together.
+    if (isTextSplittableElement(clone)) {
+      const fullText = normalizeText(clone.textContent || '');
+      const { kept, suffix } = fitTextPrefix(column, clone, fullText);
+      if (kept > 0 && suffix) {
+        const rest = document.createElement('section');
+        rest.className = unit.className;
+        const restHost = cloneShell(host);
+        rest.appendChild(restHost);
+        addContinuedMarker(restHost, fittedHost);
+        restHost.appendChild(makeSuffixElement(clone, suffix));
+        for (let j = i + 1; j < children.length; j++) {
+          restHost.appendChild(children[j].cloneNode(true));
+        }
+        return { fitted, rest };
+      }
+      if (kept > 0 && !suffix) {
+        fitCount += 1;
+        continue;
+      }
+    }
+
+    clone.remove();
+    break;
   }
 
   if (fitCount === 0) {
@@ -219,18 +351,9 @@ function splitOverflowingUnit(
 
   const rest = document.createElement('section');
   rest.className = unit.className;
-  const restHost = host.cloneNode(false) as HTMLElement;
+  const restHost = cloneShell(host);
   rest.appendChild(restHost);
-
-  const hadHeading = Boolean(
-    fittedHost.querySelector('h1, h2, h3, .section-label, .kicker'),
-  );
-  if (hadHeading) {
-    const cont = document.createElement('p');
-    cont.className = 'sheet-continued';
-    cont.textContent = '(continued)';
-    restHost.appendChild(cont);
-  }
+  addContinuedMarker(restHost, fittedHost);
 
   for (let i = fitCount; i < children.length; i++) {
     restHost.appendChild(children[i].cloneNode(true));
@@ -239,13 +362,139 @@ function splitOverflowingUnit(
   return { fitted, rest };
 }
 
-function shrinkToFit(column: HTMLElement, unit: HTMLElement) {
-  unit.classList.add('sheet-unit-oversize');
-  const available = column.clientHeight;
-  const actual = unit.scrollHeight;
-  if (actual > available && actual > 0) {
-    unit.style.setProperty('--sheet-unit-scale', String(Math.min(1, available / actual)));
+/**
+ * Split a unit whose overflow is a single tall text block (e.g. one `.deck`
+ * alone in a column after a headline-only split).
+ */
+function splitTextOverflowingUnit(
+  column: HTMLElement,
+  unit: HTMLElement,
+): { fitted: HTMLElement | null; rest: HTMLElement | null } {
+  const host = unit.firstElementChild as HTMLElement | null;
+  if (!host) return { fitted: null, rest: unit };
+
+  const children = Array.from(host.children) as HTMLElement[];
+  let targetIndex = -1;
+  for (let i = children.length - 1; i >= 0; i--) {
+    if (isTextSplittableElement(children[i])) {
+      targetIndex = i;
+      break;
+    }
   }
+  if (targetIndex < 0) return { fitted: null, rest: unit };
+
+  const target = children[targetIndex];
+  const fullText = normalizeText(target.textContent || '');
+  if (!fullText) return { fitted: null, rest: unit };
+
+  unit.remove();
+
+  const fitted = document.createElement('section');
+  fitted.className = unit.className;
+  const fittedHost = cloneShell(host);
+  fitted.appendChild(fittedHost);
+  column.appendChild(fitted);
+
+  for (let i = 0; i < targetIndex; i++) {
+    fittedHost.appendChild(children[i].cloneNode(true));
+  }
+
+  if (fittedHost.children.length && overflows(column)) {
+    fitted.remove();
+    column.appendChild(unit);
+    return { fitted: null, rest: unit };
+  }
+
+  const probe = cloneShell(target);
+  fittedHost.appendChild(probe);
+  const { kept, suffix } = fitTextPrefix(column, probe, fullText);
+
+  if (kept === 0) {
+    probe.remove();
+    if (!fittedHost.children.length) {
+      fitted.remove();
+      return { fitted: null, rest: unit };
+    }
+    // Keep preceding siblings (e.g. continued marker); defer full text block.
+    const rest = document.createElement('section');
+    rest.className = unit.className;
+    const restHost = cloneShell(host);
+    rest.appendChild(restHost);
+    addContinuedMarker(restHost, fittedHost);
+    for (let i = targetIndex; i < children.length; i++) {
+      restHost.appendChild(children[i].cloneNode(true));
+    }
+    return { fitted, rest };
+  }
+
+  if (!suffix) {
+    for (let i = targetIndex + 1; i < children.length; i++) {
+      const next = children[i].cloneNode(true) as HTMLElement;
+      fittedHost.appendChild(next);
+      if (overflows(column)) {
+        fittedHost.lastElementChild?.remove();
+        const rest = document.createElement('section');
+        rest.className = unit.className;
+        const restHost = cloneShell(host);
+        rest.appendChild(restHost);
+        addContinuedMarker(restHost, fittedHost);
+        for (let j = i; j < children.length; j++) {
+          restHost.appendChild(children[j].cloneNode(true));
+        }
+        return { fitted, rest };
+      }
+    }
+    return { fitted, rest: null };
+  }
+
+  const rest = document.createElement('section');
+  rest.className = unit.className;
+  const restHost = cloneShell(host);
+  rest.appendChild(restHost);
+  addContinuedMarker(restHost, fittedHost);
+  restHost.appendChild(makeSuffixElement(target, suffix));
+  for (let i = targetIndex + 1; i < children.length; i++) {
+    restHost.appendChild(children[i].cloneNode(true));
+  }
+  return { fitted, rest };
+}
+
+/**
+ * Attempt to keep a partial unit in the current column.
+ * Returns true if the overflow was resolved (caller should `continue`).
+ */
+function resolveOverflow(
+  column: HTMLElement,
+  unitRef: { unit: HTMLElement },
+  queue: HTMLElement[],
+): boolean {
+  let { unit } = unitRef;
+
+  if (isSplittable(unit)) {
+    const { fitted, rest } = splitOverflowingUnit(column, unit);
+    if (fitted && !rest) return true;
+    if (fitted && rest) {
+      queue.unshift(rest);
+      return true;
+    }
+    unit = rest || unit;
+    unitRef.unit = unit;
+    if (!unit.parentElement) column.appendChild(unit);
+  }
+
+  if (canTextSplit(unit) && overflows(column)) {
+    const { fitted, rest } = splitTextOverflowingUnit(column, unit);
+    if (fitted && !rest) return true;
+    if (fitted && rest) {
+      queue.unshift(rest);
+      return true;
+    }
+    unit = rest || unit;
+    unitRef.unit = unit;
+    if (!unit.parentElement) column.appendChild(unit);
+  }
+
+  return false;
 }
 
 async function waitForAssets(root: ParentNode) {
@@ -316,10 +565,7 @@ function currentColumn(state: SheetState): HTMLElement {
   return state.columns[Math.min(state.colIndex, state.columns.length - 1)];
 }
 
-function advanceColumn(
-  host: HTMLElement,
-  state: SheetState,
-): SheetState {
+function advanceColumn(host: HTMLElement, state: SheetState): SheetState {
   if (state.colIndex < state.columns.length - 1) {
     state.colIndex += 1;
     return state;
@@ -356,67 +602,43 @@ export async function paginateEdition(): Promise<PaginateResult> {
 
   const queue = [...columnUnits];
   let guard = 0;
-  const maxSteps = Math.max(80, queue.length * 8);
+  const maxSteps = Math.max(120, queue.length * 16);
 
   while (queue.length && guard < maxSteps) {
     guard += 1;
-    let unit = queue.shift()!;
+    const unitRef = { unit: queue.shift()! };
     let col = currentColumn(state);
-    col.appendChild(unit);
+    col.appendChild(unitRef.unit);
 
     if (!overflows(col)) continue;
 
     // Overflow with other content already in the column: try to keep a partial unit.
-    if (isSplittable(unit) && col.children.length > 1) {
-      const { fitted, rest } = splitOverflowingUnit(col, unit);
-      if (fitted && !rest) continue;
-      if (fitted && rest) {
-        queue.unshift(rest);
+    if (col.children.length > 1) {
+      if ((isSplittable(unitRef.unit) || canTextSplit(unitRef.unit)) && resolveOverflow(col, unitRef, queue)) {
         continue;
       }
-      // No child fit — place whole unit on the next column/page.
-      unit = rest || unit;
-    } else if (col.children.length > 1) {
-      unit.remove();
+      // Nothing fit — place whole unit on the next column/page.
+      unitRef.unit.remove();
+    } else if (isSplittable(unitRef.unit) || canTextSplit(unitRef.unit)) {
+      // Alone in column and overflows: split in place (no shrink-to-fit).
+      if (resolveOverflow(col, unitRef, queue)) continue;
     }
 
-    // Unit is either still alone overflowing, or moved out for a fresh column.
-    if (unit.parentElement === col && col.children.length === 1) {
-      if (isSplittable(unit)) {
-        const { fitted, rest } = splitOverflowingUnit(col, unit);
-        if (fitted && rest) {
-          queue.unshift(rest);
-          continue;
-        }
-        if (fitted && !rest) continue;
-        unit = rest || unit;
-        if (!unit.parentElement) col.appendChild(unit);
-      }
-      shrinkToFit(col, unit);
-      state = advanceColumn(host, state);
-      continue;
-    }
-
-    if (unit.parentElement === col) unit.remove();
+    // Move to a fresh column/page (games/comics move whole; never scale).
+    if (unitRef.unit.parentElement === col) unitRef.unit.remove();
 
     state = advanceColumn(host, state);
     col = currentColumn(state);
-    col.appendChild(unit);
+    col.appendChild(unitRef.unit);
 
     if (!overflows(col)) continue;
 
-    if (isSplittable(unit)) {
-      const { fitted, rest } = splitOverflowingUnit(col, unit);
-      if (fitted && rest) {
-        queue.unshift(rest);
-        continue;
-      }
-      if (fitted && !rest) continue;
-      unit = rest || unit;
-      if (!unit.parentElement) col.appendChild(unit);
+    if ((isSplittable(unitRef.unit) || canTextSplit(unitRef.unit)) && resolveOverflow(col, unitRef, queue)) {
+      continue;
     }
 
-    shrinkToFit(col, unit);
+    // Atomic content taller than a column (e.g. comic before CSS max-height applies):
+    // leave it and advance — never scale fonts.
     state = advanceColumn(host, state);
   }
 
