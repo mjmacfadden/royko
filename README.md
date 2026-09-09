@@ -1,83 +1,125 @@
-# Royko — THE NORTHBROOK CHRONICLE
+# Royko — THE DAILY MIKE
 
 Personal morning newspaper for Northbrook, IL. **Not a news dashboard** — the site *is* the newspaper: cream paper, black ink, serif type, thin rules, three finite pages, designed for **print first** (letter 8.5×11).
 
-**Masthead:** THE NORTHBROOK CHRONICLE  
+**Masthead:** THE DAILY MIKE (Manufacturing Consent + Playfair for headlines)  
 **Tagline:** Independent · Personal · Daily  
+**Location context:** Northbrook / ZIP 60062 (weather & dateline — not the paper’s name)  
 **Sample edition:** Wednesday, September 9, 2026 · Vol. I, No. 214
 
 ## Quick start
 
 ```bash
 cd /path/to/Royko
+cp .env.example .env   # optional — sets PUBLIC_SITE_URL for QR codes
 npm install
 npm run dev
 ```
 
 Open **http://localhost:4321/**  
-Print: use **Print today's paper** (or ⌘/Ctrl+P). Screen chrome is hidden when printing.
+Print: **Print today’s paper** (or ⌘/Ctrl+P). Screen chrome & settings are hidden when printing.
 
 ```bash
-npm run build    # static output → dist/
+npm run build    # Node SSR build → dist/
 npm run preview  # preview production build
+npm start        # node dist/server/entry.mjs
 ```
 
-## Phase 1 (this repo)
+### Environment
+
+| Variable | Purpose |
+|----------|---------|
+| `PUBLIC_SITE_URL` | Absolute origin for puzzle-answer QR codes (e.g. `https://daily-mike.example.com`). Defaults to `http://localhost:4321`. |
+
+QR / answers URL pattern: **`{PUBLIC_SITE_URL}/answers/YYYY-MM-DD`**  
+Example: `http://localhost:4321/answers/2026-09-09`
+
+## What’s in this phase
 
 | Area | Status |
 |------|--------|
 | Astro app + 3-page newspaper shell | ✅ |
-| Print-first 3-column letter layout | ✅ |
-| Date-centric `Edition` model | ✅ |
-| RSS-**shaped** story placeholders (title, description, url, image?, source, publishedAt, category) | ✅ |
-| Weather Underground widget container (iframe to public WU page for ZIP 60062) + print fallback strip | ✅ |
-| Agenda placeholders (incl. Jack) | ✅ |
-| Static puzzle banks (~100 each), day-indexed | ✅ Jumble, sports trivia, mini crossword |
-| Comics / How to Draw / Today in History placeholders | ✅ |
-| Live RSS ingestion | ❌ Phase 2 |
+| Print-first 3-column letter layout (dense, no blank waste page) | ✅ |
+| Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
+| Merriweather body ~10pt print / tight screen | ✅ |
+| Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
+| Live RSS ingestion (build-time + `/api/rss`) | ✅ Phase 2-lite |
+| Settings panel (feeds, ZIP, custom RSS) | ✅ localStorage |
+| Comics RSS (xkcd + Garfield via comicsrss) | ✅ best-effort hotlink |
 | Live calendar (Google OAuth) | ❌ Later |
-| WU API key / official embed snippet | ❌ Optional — paste into edition `weather.embedSrc` |
-| Grok paste admin / AI roundup as primary news | ❌ Roundup is optional secondary box only |
 | Auth / Supabase | ❌ Out of scope |
 
-### News backbone = RSS-shaped items
+### Settings (screen only)
 
-Page 2 columns (News / Business·Tech / Sports) and Page 1 lead + “Also today” render `RssStory` objects. Phase 2 should normalize feed items into that shape — see `src/data/types.ts` and comments in `src/data/edition-2026-09-09.ts`. Do **not** treat the optional Morning Roundup as the primary news source.
+Open **Settings** in the top chrome:
 
-### Puzzle banks (static JS/TS, day-indexed)
+1. **Opt into/out of built-in RSS feeds** (checkboxes).
+2. **ZIP code** for Weather Underground (default `60062`).
+3. **Custom RSS URLs** — **today-only** (America/Chicago / edition date). Built-in refresh also uses today-only via the API.
 
-- Files: `src/data/puzzles/jumble.ts`, `trivia.ts`, `crossword.ts` (~100 entries each).
-- Lookup by `dayOfYear` (1–365) or `dateKey` (`MM-DD`) via `pickByDate()` / `puzzlesForDate()`.
-- Regenerate scaffold: `node src/scripts/generate-puzzle-banks.mjs`
-- **Maintenance:** refresh/extend the banks manually every ~3 months.
+Prefs persist in `localStorage` (`daily-mike-settings-v1`). Save triggers `/api/rss` (server-side fetch, avoids CORS). Empty/failed settings never blank the paper — build-time snapshot remains.
 
-### Weather
+### News / RSS
 
-`WeatherWidget` iframes the public Weather Underground forecast page for Northbrook / **60062** (no API secret). Print CSS hides the iframe and shows the edition’s fallback high/low/summary. If you obtain an official WU embed URL, set `weather.embedSrc` on the edition.
+Feed catalog: `src/data/feeds.ts`
+
+Starter feeds (skipped gracefully on failure):
+
+- NPR News, NPR briefs  
+- BBC World, BBC Business  
+- NYT Home, NYT U.S.  
+- Ars Technica, The Verge, Hacker News  
+- ESPN  
+
+Normalize → `RssStory` (`src/data/types.ts`). Headlines + short excerpts + source link only — **no full-article republish**.
+
+Build merges live items in `src/lib/edition.ts` (today-first, then latest, then placeholders).
+
+### Puzzle answers + QR
+
+- Paper puzzles **do not** reveal answers (`<details>` removed).
+- Answers: `/answers/YYYY-MM-DD` (phone-friendly).
+- QR on puzzles page (build-time SVG via `qrcode`) → answers URL; caption: “Scan for today’s puzzle answers”.
+
+### Comics
+
+Config: `src/data/feeds/comics.ts`  
+Pipeline: `src/lib/comics.ts` — fetch image URL + title + link; **hotlink** with credit; link out to publisher (do not re-host). Fallback UI if feed fails.
+
+Default strips: **xkcd**, **SMBC** (creator RSS). GoComics-backed comicsrss feeds are currently halted.
+
+### Typography
+
+- **Masthead:** [Manufacturing Consent](https://fonts.google.com/specimen/Manufacturing+Consent) (NYT-style blackletter, Google Fonts)
+- **Headlines:** Playfair Display  
+- **Body:** Merriweather ≈ **10pt** print, tight leading  
+- **UI/small caps:** Libre Franklin  
 
 ## Project layout
 
 ```
 src/
-  components/     Masthead, WeatherWidget, Agenda, LeadStory, StoryColumn, puzzles…
+  components/     Masthead, SettingsPanel, AnswersQr, puzzles, ComicStrip…
   data/
+    feeds.ts              curated news RSS list
+    feeds/comics.ts       comic RSS slots
     types.ts
-    edition-2026-09-09.ts
+    edition-2026-09-09.ts placeholders / agenda / weather
     editions/latest.ts
-    dayIndex.ts
-    puzzles/      jumble · trivia · crossword banks
-  pages/index.astro
-  styles/newspaper.css   ← print rules are authoritative
-  scripts/generate-puzzle-banks.mjs
+    puzzles/              jumble · trivia · crossword banks
+  lib/
+    site.ts               PAPER_NAME, PUBLIC_SITE_URL, answers URLs
+    rss.ts                fetch/normalize
+    comics.ts
+    edition.ts            merge live → Edition
+    settings.ts           localStorage settings shape
+    dateFilter.ts         America/Chicago today filter
+  pages/
+    index.astro
+    answers/[date].astro
+    api/rss.ts            POST settings-driven fetch
+  styles/newspaper.css    print rules are authoritative
 ```
-
-## Later phases (planned)
-
-1. **RSS ingestion** — fetch/normalize feeds → `RssStory[]` per section.
-2. **Calendar** — today’s agenda from Google Calendar (or ICS).
-3. **Weather** — richer WU embed or API if keys are available.
-4. **Grok paste admin** — optional short Morning Roundup only.
-5. **Puzzle bank tooling** — easier quarterly refresh; keep day-index model.
 
 ## License / personal use
 

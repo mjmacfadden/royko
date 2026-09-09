@@ -7,10 +7,7 @@ const { puzzle } = Astro.props;
 ---
 <section class="jumble-box" aria-label="Jumble">
   <h2 class="section-label">Jumble</h2>
-  <p style="font-size: 0.78rem; margin: 0;">{puzzle.clue}</p>
+  <p class="puzzle-clue">{puzzle.clue}</p>
   <div class="jumble-scrambled">{puzzle.scrambled}</div>
-  <details class="reveal-answer">
-    <summary>Reveal answer</summary>
-    <p><strong>{puzzle.answer}</strong></p>
-  </details>
+  <p class="puzzle-hint-note">Answers via QR → answers page</p>
 </section>

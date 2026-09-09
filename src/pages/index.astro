@@ -1,7 +1,12 @@
 ---
+export const prerender = true;
+
 import '../styles/newspaper.css';
 import { latestEdition } from '../data/editions/latest';
 import { puzzlesForDate } from '../data/puzzles';
+import { buildLiveEdition } from '../lib/edition';
+import { PAPER_NAME_UPPER } from '../lib/site';
+import { NEWS_FEEDS } from '../data/feeds';
 import Masthead from '../components/Masthead.astro';
 import WeatherWidget from '../components/WeatherWidget.astro';
 import Agenda from '../components/Agenda.astro';
@@ -16,10 +21,13 @@ import ComicStrip from '../components/ComicStrip.astro';
 import HowToDraw from '../components/HowToDraw.astro';
 import TodayInHistory from '../components/TodayInHistory.astro';
 import PageFolio from '../components/PageFolio.astro';
+import AnswersQr from '../components/AnswersQr.astro';
+import SettingsPanel from '../components/SettingsPanel.astro';
 
-const edition = latestEdition;
+const { edition, feedStatus, comicsLive } = await buildLiveEdition(latestEdition);
 const editionDate = new Date(`${edition.date}T12:00:00`);
 const puzzles = puzzlesForDate(editionDate);
+const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.section }));
 ---
 
 <!doctype html>
@@ -29,17 +37,21 @@ const puzzles = puzzlesForDate(editionDate);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="description" content="THE NORTHBROOK CHRONICLE — personal morning newspaper" />
+    <meta name="description" content="THE DAILY MIKE — personal morning newspaper" />
     <meta name="generator" content={Astro.generator} />
-    <title>THE NORTHBROOK CHRONICLE — {edition.dateDisplay}</title>
+    <title>THE DAILY MIKE — {edition.dateDisplay}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Libre+Franklin:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;600;700&family=Manufacturing+Consent&family=Merriweather:ital,opsz,wght@0,18..144,300;0,18..144,400;0,18..144,700;1,18..144,300;1,18..144,400&family=Playfair+Display:wght@700;900&display=swap"
       rel="stylesheet"
     />
   </head>
-  <body>
+  <body
+    data-edition-date={edition.date}
+    data-feed-ok={feedStatus.ok.join(',')}
+    data-feed-failed={feedStatus.failed.map((f) => f.id).join(',')}
+  >
     <div class="screen-chrome" role="navigation" aria-label="Edition controls">
       <div style="display:flex; gap:0.5rem; align-items:center;">
         <button type="button" id="prev-page" aria-label="Previous page">←</button>
@@ -47,10 +59,13 @@ const puzzles = puzzlesForDate(editionDate);
         <button type="button" id="next-page" aria-label="Next page">→</button>
       </div>
       <div style="display:flex; gap:0.5rem; align-items:center;">
-        <span style="opacity:0.8;">THE NORTHBROOK CHRONICLE</span>
+        <span style="opacity:0.8;">{PAPER_NAME_UPPER}</span>
+        <button type="button" id="open-settings">Settings</button>
         <button type="button" id="print-paper">Print today's paper</button>
       </div>
     </div>
+
+    <SettingsPanel />
 
     <main class="newspaper-shell" id="newspaper">
       <!-- PAGE 1 -->
@@ -66,7 +81,7 @@ const puzzles = puzzlesForDate(editionDate);
             <WeatherWidget weather={edition.weather} />
             <Agenda items={edition.agenda} />
           </div>
-          <div class="page1-main">
+          <div class="page1-main" data-live-lead>
             <LeadStory story={edition.leadStory} />
             {edition.morningRoundup && (
               <MorningRoundup
@@ -76,10 +91,15 @@ const puzzles = puzzlesForDate(editionDate);
               />
             )}
           </div>
-          <div>
+          <div data-live-also>
             <AlsoToday stories={edition.alsoToday} />
           </div>
         </div>
+        <p class="feed-status-note screen-only">
+          RSS: {feedStatus.ok.length ? `live (${feedStatus.ok.join(', ')})` : 'placeholders'}
+          {feedStatus.failed.length > 0 && ` · skipped ${feedStatus.failed.map((f) => f.id).join(', ')}`}
+          {comicsLive ? ' · comics live' : ' · comics fallback'}
+        </p>
         <PageFolio page={1} />
       </section>
 
@@ -92,9 +112,15 @@ const puzzles = puzzlesForDate(editionDate);
           pageLabel="News · Business · Sports · Page 2"
         />
         <div class="page2-grid">
-          <StoryColumn label="News" stories={edition.news} />
-          <StoryColumn label="Business · Tech" stories={edition.businessTech} />
-          <StoryColumn label="Sports" stories={edition.sports} />
+          <div data-live-news>
+            <StoryColumn label="News" stories={edition.news} />
+          </div>
+          <div data-live-biz>
+            <StoryColumn label="Business · Tech" stories={edition.businessTech} />
+          </div>
+          <div data-live-sports>
+            <StoryColumn label="Sports" stories={edition.sports} />
+          </div>
         </div>
         <PageFolio page={2} />
       </section>
@@ -117,6 +143,7 @@ const puzzles = puzzlesForDate(editionDate);
             <SportsTrivia trivia={puzzles.trivia} />
           </div>
           <div>
+            <AnswersQr date={edition.date} />
             <HowToDraw lesson={edition.drawingLesson} />
             <TodayInHistory history={edition.todayInHistory} birthdays={edition.birthdays} />
           </div>
@@ -125,12 +152,33 @@ const puzzles = puzzlesForDate(editionDate);
       </section>
     </main>
 
+    <script id="feed-catalog" type="application/json" set:html={JSON.stringify(feedCatalog)} />
+    <script id="edition-bootstrap" type="application/json" set:html={JSON.stringify({
+      date: edition.date,
+      lead: edition.leadStory,
+      alsoToday: edition.alsoToday,
+      news: edition.news,
+      businessTech: edition.businessTech,
+      sports: edition.sports,
+    })} />
+
     <script>
+      import {
+        defaultSettings,
+        loadSettings,
+        saveSettings,
+        wundergroundUrlForZip,
+        type PaperSettings,
+        type CustomFeed,
+      } from '../lib/settings';
+
       const pages = Array.from(document.querySelectorAll<HTMLElement>('.newspaper-page'));
       const indicator = document.getElementById('page-indicator');
       const prevBtn = document.getElementById('prev-page') as HTMLButtonElement | null;
       const nextBtn = document.getElementById('next-page') as HTMLButtonElement | null;
       const printBtn = document.getElementById('print-paper');
+      const openSettingsBtn = document.getElementById('open-settings');
+      const dialog = document.getElementById('settings-dialog') as HTMLDialogElement | null;
       let current = 1;
       const total = pages.length;
 
@@ -149,13 +197,204 @@ const puzzles = puzzlesForDate(editionDate);
       prevBtn?.addEventListener('click', () => showPage(current - 1));
       nextBtn?.addEventListener('click', () => showPage(current + 1));
       printBtn?.addEventListener('click', () => window.print());
-
       document.addEventListener('keydown', (e) => {
         if (e.key === 'ArrowLeft') showPage(current - 1);
         if (e.key === 'ArrowRight') showPage(current + 1);
       });
-
       showPage(1);
+
+      // —— Settings ——
+      let settings: PaperSettings = loadSettings();
+      let customFeeds: CustomFeed[] = [...settings.customFeeds];
+
+      function applyWeather(zip: string) {
+        const zipEl = document.querySelector('[data-weather-zip]');
+        const link = document.querySelector('[data-weather-link]') as HTMLAnchorElement | null;
+        const label = document.querySelector('[data-weather-label]');
+        if (zipEl) zipEl.textContent = zip;
+        if (link) link.href = wundergroundUrlForZip(zip);
+        if (label && zip === '60062') label.textContent = 'Northbrook, IL';
+        else if (label) label.textContent = `ZIP ${zip}`;
+      }
+
+      function storyHtml(s: { title: string; description: string; url: string; source: string }) {
+        return `<article class="story-item">
+          <h3><a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></h3>
+          <p class="deck">${escapeHtml(s.description)}</p>
+          <p class="meta">${escapeHtml(s.source)}</p>
+        </article>`;
+      }
+
+      function escapeHtml(t: string) {
+        return t
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      function renderColumn(rootSel: string, label: string, stories: any[]) {
+        const root = document.querySelector(rootSel);
+        if (!root) return;
+        if (!stories?.length) {
+          root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2><p class="deck">No stories for today’s filters.</p></section>`;
+          return;
+        }
+        root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2>${stories.map(storyHtml).join('')}</section>`;
+      }
+
+      function renderAlso(stories: any[]) {
+        const root = document.querySelector('[data-live-also]');
+        if (!root) return;
+        root.innerHTML = `<section class="also-today" aria-label="Also today">
+          <h2 class="section-label">Also today</h2>
+          ${(stories || [])
+            .map(
+              (s) => `<article class="brief">
+              <h3><a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></h3>
+              <p>${escapeHtml(s.description)}</p>
+              <p class="source">${escapeHtml(s.source)}</p>
+            </article>`,
+            )
+            .join('')}
+        </section>`;
+      }
+
+      function renderLead(story: any) {
+        const root = document.querySelector('[data-live-lead]');
+        if (!root || !story) return;
+        const roundup = root.querySelector('.roundup-box');
+        const roundupHtml = roundup ? roundup.outerHTML : '';
+        root.innerHTML = `<article class="lead-story">
+          <h2><a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a></h2>
+          <p class="lead-deck">${escapeHtml(story.description)}</p>
+          <p class="lead-meta">${escapeHtml(story.source)}</p>
+        </article>${roundupHtml}`;
+      }
+
+      async function refreshStories(s: PaperSettings) {
+        const status = document.getElementById('settings-status');
+        if (status) status.textContent = 'Refreshing feeds…';
+        const editionDate = document.body.dataset.editionDate || '';
+        try {
+          const res = await fetch('/api/rss', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              enabledFeedIds: s.enabledFeedIds,
+              customFeeds: s.customFeeds,
+              editionDate,
+              todayOnlyBuiltIn: true,
+            }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          const news = data.news?.length ? data.news.slice(0, 4) : [];
+          const biz = data.businessTech?.length ? data.businessTech.slice(0, 4) : [];
+          const sports = data.sports?.length ? data.sports.slice(0, 4) : [];
+          const lead = data.lead?.[0] || news[0];
+          const also = data.alsoToday?.length
+            ? data.alsoToday.slice(0, 4)
+            : news.slice(1, 5);
+          if (lead) renderLead(lead);
+          renderAlso(also);
+          renderColumn('[data-live-news]', 'News', news);
+          renderColumn('[data-live-biz]', 'Business · Tech', biz);
+          renderColumn('[data-live-sports]', 'Sports', sports);
+          if (status) {
+            status.textContent = `Updated · ${(data.okFeeds || []).length} feeds ok` +
+              (data.failedFeeds?.length ? ` · ${data.failedFeeds.length} skipped` : '');
+          }
+        } catch (e) {
+          if (status) {
+            status.textContent =
+              'Could not refresh via API (using printed edition). ' +
+              (e instanceof Error ? e.message : String(e));
+          }
+        }
+      }
+
+      function renderCustomList() {
+        const list = document.getElementById('custom-feeds-list');
+        if (!list) return;
+        list.innerHTML = customFeeds
+          .map(
+            (f, i) => `<div class="custom-feed-row" data-idx="${i}">
+              <span><strong>${escapeHtml(f.name)}</strong><br/>${escapeHtml(f.url)}</span>
+              <button type="button" data-remove-custom="${i}">Remove</button>
+            </div>`,
+          )
+          .join('');
+        list.querySelectorAll('[data-remove-custom]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const idx = Number((btn as HTMLElement).getAttribute('data-remove-custom'));
+            customFeeds.splice(idx, 1);
+            renderCustomList();
+          });
+        });
+      }
+
+      function populateSettingsForm(s: PaperSettings) {
+        const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
+        if (zipInput) zipInput.value = s.zip;
+        document.querySelectorAll<HTMLInputElement>('input[name="feed"]').forEach((cb) => {
+          cb.checked = s.enabledFeedIds.includes(cb.value);
+        });
+        customFeeds = [...s.customFeeds];
+        renderCustomList();
+      }
+
+      function readSettingsFromForm(): PaperSettings {
+        const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
+        const zip = (zipInput?.value || '60062').trim();
+        const enabledFeedIds = Array.from(
+          document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
+        ).map((cb) => cb.value);
+        return {
+          zip: /^\d{5}$/.test(zip) ? zip : '60062',
+          enabledFeedIds,
+          customFeeds: [...customFeeds],
+        };
+      }
+
+      openSettingsBtn?.addEventListener('click', () => {
+        settings = loadSettings();
+        populateSettingsForm(settings);
+        dialog?.showModal();
+      });
+
+      document.getElementById('custom-feed-add-btn')?.addEventListener('click', () => {
+        const name = (document.getElementById('custom-feed-name') as HTMLInputElement)?.value.trim() || 'Custom';
+        const url = (document.getElementById('custom-feed-url') as HTMLInputElement)?.value.trim();
+        if (!url || !url.startsWith('http')) return;
+        customFeeds.push({ id: `custom-${Date.now()}`, name, url });
+        (document.getElementById('custom-feed-name') as HTMLInputElement).value = '';
+        (document.getElementById('custom-feed-url') as HTMLInputElement).value = '';
+        renderCustomList();
+      });
+
+      document.getElementById('settings-reset')?.addEventListener('click', () => {
+        settings = defaultSettings();
+        populateSettingsForm(settings);
+      });
+
+      document.getElementById('settings-save')?.addEventListener('click', async () => {
+        settings = readSettingsFromForm();
+        saveSettings(settings);
+        applyWeather(settings.zip);
+        await refreshStories(settings);
+      });
+
+      // Apply persisted ZIP on load; optionally refresh if settings differ from defaults
+      applyWeather(settings.zip);
+      const defaults = defaultSettings();
+      const differs =
+        settings.zip !== defaults.zip ||
+        settings.enabledFeedIds.slice().sort().join() !== defaults.enabledFeedIds.slice().sort().join() ||
+        settings.customFeeds.length > 0;
+      if (differs) {
+        refreshStories(settings);
+      }
     </script>
   </body>
 </html>

@@ -1,0 +1,76 @@
+---
+import { NEWS_FEEDS } from '../data/feeds';
+const feedsBySection = {
+  news: NEWS_FEEDS.filter((f) => f.section === 'news' || f.section === 'lead' || f.section === 'alsoToday'),
+  businessTech: NEWS_FEEDS.filter((f) => f.section === 'businessTech'),
+  sports: NEWS_FEEDS.filter((f) => f.section === 'sports'),
+};
+---
+<dialog class="settings-dialog screen-only" id="settings-dialog" aria-labelledby="settings-title">
+  <form method="dialog" class="settings-form" id="settings-form">
+    <header class="settings-header">
+      <h2 id="settings-title">Paper settings</h2>
+      <button type="submit" class="settings-close" value="cancel" aria-label="Close">×</button>
+    </header>
+
+    <section class="settings-section">
+      <h3>Weather ZIP</h3>
+      <label class="settings-label">
+        ZIP code
+        <input type="text" name="zip" id="settings-zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" value="60062" />
+      </label>
+      <p class="settings-help">Default 60062 (Northbrook). Updates the Weather Underground link.</p>
+    </section>
+
+    <section class="settings-section">
+      <h3>Built-in RSS feeds</h3>
+      <p class="settings-help">Opt in/out. Items are filtered to today’s date (America/Chicago) when refreshing.</p>
+      <div class="settings-feed-groups">
+        <fieldset>
+          <legend>News / lead</legend>
+          {feedsBySection.news.map((f) => (
+            <label class="settings-check">
+              <input type="checkbox" name="feed" value={f.id} data-feed-id={f.id} />
+              <span>{f.name}</span>
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend>Business · Tech</legend>
+          {feedsBySection.businessTech.map((f) => (
+            <label class="settings-check">
+              <input type="checkbox" name="feed" value={f.id} data-feed-id={f.id} />
+              <span>{f.name}</span>
+            </label>
+          ))}
+        </fieldset>
+        <fieldset>
+          <legend>Sports</legend>
+          {feedsBySection.sports.map((f) => (
+            <label class="settings-check">
+              <input type="checkbox" name="feed" value={f.id} data-feed-id={f.id} />
+              <span>{f.name}</span>
+            </label>
+          ))}
+        </fieldset>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h3>Custom RSS feeds</h3>
+      <p class="settings-help">Only items published <strong>today</strong> (America/Chicago) are included.</p>
+      <div id="custom-feeds-list" class="custom-feeds-list"></div>
+      <div class="custom-feed-add">
+        <input type="text" id="custom-feed-name" placeholder="Name" />
+        <input type="url" id="custom-feed-url" placeholder="https://example.com/feed.xml" />
+        <button type="button" id="custom-feed-add-btn">Add feed</button>
+      </div>
+    </section>
+
+    <footer class="settings-footer">
+      <button type="button" id="settings-reset">Reset defaults</button>
+      <button type="button" id="settings-save" class="primary">Save &amp; refresh stories</button>
+    </footer>
+    <p class="settings-status" id="settings-status" aria-live="polite"></p>
+  </form>
+</dialog>

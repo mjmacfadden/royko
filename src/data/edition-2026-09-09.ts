@@ -1,7 +1,7 @@
 /**
  * Sample edition — Wednesday, September 9, 2026.
  * Stories are RSS-shaped placeholders (title, description, url, image?, source, publishedAt, category)
- * so Phase 2 can swap in a real RSS ingestion layer without changing components.
+ * Live RSS merges over these placeholders at build time (see src/lib/edition.ts).
  */
 import type { Edition } from './types';
 

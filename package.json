@@ -9,13 +9,20 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "start": "node dist/server/entry.mjs"
   },
   "dependencies": {
-    "astro": "^7.3.2"
+    "@astrojs/node": "^11.1.5",
+    "astro": "^7.3.2",
+    "fast-xml-parser": "^5.11.1",
+    "qrcode": "^1.5.4"
   },
   "allowScripts": {
     "esbuild": true
   },
-  "description": "Personal morning newspaper — THE NORTHBROOK CHRONICLE"
+  "description": "Personal morning newspaper \u2014 THE DAILY MIKE",
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6"
+  }
 }

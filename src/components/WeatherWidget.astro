@@ -6,13 +6,8 @@ interface Props {
 const { weather } = Astro.props;
 const iframeSrc = weather.embedSrc || null;
 ---
-<section class="weather-widget" aria-label="Weather">
-  <h2 class="section-label">Weather · {weather.locationLabel}</h2>
-  {/*
-    Weather Underground: prefer an official embed URL in edition.weather.embedSrc when available.
-    Default: no secret API — show print/screen fallback strip + link-out to the public WU page.
-    Optional iframe only when embedSrc is set (many WU pages send X-Frame-Options and will not iframe).
-  */}
+<section class="weather-widget" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
+  <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
   {iframeSrc ? (
     <iframe
       class="wu-frame"
@@ -22,14 +17,19 @@ const iframeSrc = weather.embedSrc || null;
       referrerpolicy="no-referrer-when-downgrade"
     ></iframe>
   ) : (
-    <div class="wu-embed-scaffold" style="border: 1px dashed #999; padding: 0.45rem; margin-bottom: 0.4rem; font-family: var(--sans-small); font-size: 0.68rem; letter-spacing: 0.04em;">
+    <div class="wu-embed-scaffold">
       WU widget slot — set <code>weather.embedSrc</code> for an official embed. Until then, use the strip + link below.
     </div>
   )}
   <div class="weather-fallback">
     <div class="temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</div>
-    <div>{weather.fallback.summary} · ZIP {weather.zip}</div>
-    <a href={weather.wundergroundUrl} target="_blank" rel="noopener noreferrer">
+    <div>{weather.fallback.summary} · ZIP <span data-weather-zip>{weather.zip}</span></div>
+    <a
+      data-weather-link
+      href={weather.wundergroundUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+    >
       Weather Underground forecast →
     </a>
   </div>

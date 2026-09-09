@@ -1,11 +1,11 @@
 /**
- * Royko edition & content types.
- * Stories are RSS-shaped so a future ingestion layer can drop in normalized feed items.
+ * Royko / The Daily Mike edition & content types.
+ * Stories are RSS-shaped so the ingestion layer can drop in normalized feed items.
  */
 
 export type StoryCategory = 'news' | 'business' | 'tech' | 'sports' | 'local' | 'national' | 'world';
 
-/** Normalized RSS-like item — primary news backbone for Phase 2+ ingestion. */
+/** Normalized RSS-like item — primary news backbone. */
 export interface RssStory {
   id: string;
   title: string;
@@ -38,11 +38,26 @@ export interface AgendaItem {
   note?: string;
 }
 
+/** @deprecated Prefer ComicStripData — kept for placeholder editions. */
 export interface ComicPlaceholder {
   id: string;
   title: string;
   credit: string;
   caption: string;
+}
+
+/** Live or fallback comic strip slot. */
+export interface ComicStripData {
+  id: string;
+  title: string;
+  credit: string;
+  caption: string;
+  /** Hotlinked image URL from RSS (do not re-host long-term). */
+  imageUrl?: string | null;
+  /** Link to publisher / strip page. */
+  link?: string;
+  /** True when fetched from a live feed. */
+  live?: boolean;
 }
 
 export interface DrawingLesson {
@@ -81,7 +96,7 @@ export interface Edition {
   news: RssStory[];
   businessTech: RssStory[];
   sports: RssStory[];
-  comics: ComicPlaceholder[];
+  comics: ComicStripData[];
   drawingLesson: DrawingLesson;
   todayInHistory: HistoryItem[];
   birthdays: BirthdayItem[];

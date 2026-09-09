@@ -1,16 +1,34 @@
 ---
-import type { ComicPlaceholder } from '../data/types';
+import type { ComicStripData } from '../data/types';
 interface Props {
-  comic: ComicPlaceholder;
+  comic: ComicStripData;
 }
 const { comic } = Astro.props;
 ---
 <section class="comic-box" aria-label={comic.title}>
   <h2 class="section-label">{comic.title}</h2>
   <div class="comic-frame">
-    <div style="font-style: normal; font-family: var(--sans-small); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.25rem;">
+    <div class="comic-credit">
       {comic.credit}
+      {comic.live === false && <span class="comic-fallback-flag"> · feed fallback</span>}
     </div>
-    {comic.caption}
+    {comic.imageUrl ? (
+      <a class="comic-image-link" href={comic.link || comic.imageUrl} target="_blank" rel="noopener noreferrer">
+        <img
+          class="comic-image"
+          src={comic.imageUrl}
+          alt={`${comic.title} — ${comic.caption}`}
+          loading="lazy"
+          referrerpolicy="no-referrer"
+        />
+      </a>
+    ) : (
+      <p class="comic-caption-only">{comic.caption}</p>
+    )}
+    {comic.link && (
+      <p class="comic-source">
+        <a href={comic.link} target="_blank" rel="noopener noreferrer">Read on publisher site</a>
+      </p>
+    )}
   </div>
 </section>
