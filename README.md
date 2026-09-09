@@ -18,7 +18,7 @@ npm run dev
 ```
 
 Open **http://localhost:4321/**  
-Print: **Print edition** (Vivliostyle) or **Preview print pages** — also ⌘/Ctrl+P. Screen chrome & settings stay on the live editor; print uses a dedicated HTML document.
+Print: **Print edition** (or ⌘/Ctrl+P) prints the on-screen letter page sheets. Screen chrome & settings are hidden when printing.
 
 ```bash
 npm run build    # Node SSR build → dist/
@@ -233,7 +233,7 @@ Print is more important than screen. The live editor keeps the cream-paper UX; *
 3. Wraps it in a minimal HTML document with Google Fonts (Merriweather / Manufacturing Consent / Playfair / Libre Franklin) and `src/styles/vivliostyle-print.css`.
 4. **Root multicol:** `html { column-count: 3; … }` — Vivliostyle’s own root-multicol engine packs columns across letter pages (`@page { size: letter; margin: ~0.4in; }`). Masthead / weather / front pack / features use page floats so they span the page width.
 5. `printHTML(htmlDoc, { title: 'The Daily Mike' })` paginates in a hidden iframe, then opens the browser print dialog (live DOM untouched).
-6. **Preview print pages** uses the same HTML + Vivliostyle layout, shown in an on-screen iframe overlay (Print / Close). Digital preview === print pages.
+6. The digital view is already paginated letter sheets — same sheets Print edition uses.
 
 Module: `src/lib/vivlioPrint.ts` (dynamic `import('@vivliostyle/print')` — client-only).
 
@@ -243,7 +243,7 @@ Legacy `newspaper.css` `@media print` remains as a non-Vivliostyle fallback if s
 
 1. `npm run dev` → http://localhost:4321/
 2. Paste a Grok brief so the edition is composed.
-3. Click **Preview print pages** — confirm letter pages, 3-col story flow, B&W weather (not the iframe), dense packing.
+3. Confirm on-screen letter pages: 3-col story flow, B&W print weather strip, dense packing.
 4. Click **Print edition** (or ⌘/Ctrl+P) — system print dialog should show the same Vivliostyle pages.
 5. `npm run build` must succeed.
 
