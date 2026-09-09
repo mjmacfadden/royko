@@ -4,7 +4,7 @@ interface Props {
   weather: WeatherConfig;
 }
 const { weather } = Astro.props;
-/** Fixed Northbrook forecast7 embed per Mike; ZIP settings may drive a different URL later. */
+/** Default Northbrook forecast7 embed; client updates from Settings ZIP. */
 const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
 ---
 <section class="weather-strip" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
@@ -15,13 +15,9 @@ const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
       href={widgetHref}
       data-label_1="NORTHBROOK"
       data-label_2="WEATHER"
-      data-font="Arial"
-      data-icons="Climacons Animated"
-      data-mode="Current"
-      data-days="5"
-      data-theme="pure"
       >NORTHBROOK WEATHER</a
     >
+    <p class="weather-widget-status" data-weather-status hidden></p>
   </div>
 
   <!-- Print / offline: compact high-low + optional Grok prose -->
@@ -35,4 +31,6 @@ const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
   </div>
 </section>
 
-<script is:inline src="https://weatherwidget.io/js/widget.min.js" async></script>
+<script is:inline>
+!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src='https://weatherwidget.io/js/widget.min.js';fjs.parentNode.insertBefore(js,fjs);}}(document,'script','weatherwidget-io-js');
+</script>

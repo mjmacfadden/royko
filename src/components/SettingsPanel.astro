@@ -21,9 +21,9 @@ const feedsBySection = {
         <input type="text" name="zip" id="settings-zip" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" value="60062" />
       </label>
       <p class="settings-help">
-        Default 60062 (Northbrook). The on-paper widget is currently the fixed Northbrook
+        Default 60062 (Northbrook). Changing ZIP looks up lat/lon (zippopotam.us) and updates the
         <a href="https://forecast7.com/en/42d13n87d83/northbrook/" target="_blank" rel="noopener noreferrer">weatherwidget.io / forecast7</a>
-        embed; ZIP may drive a different forecast7 URL later.
+        embed for that city. Invalid or unknown ZIPs fall back to Northbrook.
       </p>
     </section>
 

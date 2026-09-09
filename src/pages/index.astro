@@ -236,6 +236,7 @@ const hasWireStories =
         loadGrokBrief,
         saveGrokBrief,
         clearGrokBrief,
+        forecast7UrlForZip,
         type PaperSettings,
         type CustomFeed,
       } from '../lib/settings';
@@ -288,12 +289,64 @@ const hasWireStories =
       const bootstrapEl = document.getElementById('edition-bootstrap');
       const bootstrap = bootstrapEl ? JSON.parse(bootstrapEl.textContent || '{}') : {};
 
-      function applyWeather(zip: string) {
+      function setWeatherStatus(msg: string | null) {
+        const el = document.querySelector('[data-weather-status]') as HTMLElement | null;
+        if (!el) return;
+        if (!msg) {
+          el.hidden = true;
+          el.textContent = '';
+          return;
+        }
+        el.hidden = false;
+        el.textContent = msg;
+      }
+
+      /** Wipe weatherwidget.io iframe/DOM and re-run its loader IIFE for a new location. */
+      function reinjectWeatherWidget(href: string, label1: string) {
+        const live = document.querySelector('.weather-widget-live');
+        if (!live) return;
+        // Remove script so the loader runs again (skips if #weatherwidget-io-js exists).
+        document.getElementById('weatherwidget-io-js')?.remove();
+        // Drop prior iframe / injected nodes from weatherwidget.io.
+        live.innerHTML = '';
+        const a = document.createElement('a');
+        a.className = 'weatherwidget-io';
+        a.href = href;
+        a.setAttribute('data-label_1', label1);
+        a.setAttribute('data-label_2', 'WEATHER');
+        a.textContent = `${label1} WEATHER`;
+        live.appendChild(a);
+        const statusEl = document.createElement('p');
+        statusEl.className = 'weather-widget-status';
+        statusEl.setAttribute('data-weather-status', '');
+        statusEl.hidden = true;
+        live.appendChild(statusEl);
+
+        const script = document.createElement('script');
+        script.id = 'weatherwidget-io-js';
+        script.src = 'https://weatherwidget.io/js/widget.min.js';
+        const first = document.getElementsByTagName('script')[0];
+        if (first?.parentNode) first.parentNode.insertBefore(script, first);
+        else document.body.appendChild(script);
+      }
+
+      async function applyWeather(zip: string) {
         const zipEl = document.querySelector('[data-weather-zip]');
         const label = document.querySelector('[data-weather-label]');
         if (zipEl) zipEl.textContent = zip;
-        if (label && zip === '60062') label.textContent = 'Northbrook, IL';
-        else if (label) label.textContent = `ZIP ${zip}`;
+
+        const result = await forecast7UrlForZip(zip);
+        if (label) {
+          label.textContent = result.stateAbbr
+            ? `${result.city}, ${result.stateAbbr}`
+            : result.city;
+        }
+        reinjectWeatherWidget(result.url, result.label);
+        if (result.fromFallback) {
+          setWeatherStatus(`Could not look up ZIP ${zip}; showing Northbrook.`);
+        } else {
+          setWeatherStatus(null);
+        }
       }
 
       function escapeHtml(t: string) {
@@ -788,11 +841,14 @@ const hasWireStories =
       document.getElementById('settings-save')?.addEventListener('click', async () => {
         settings = readSettingsFromForm();
         saveSettings(settings);
-        applyWeather(settings.zip);
         applyComicVisibility(settings);
         const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
         if (ta) applyGrokText(ta.value);
-        await Promise.all([refreshStories(settings), refreshAgenda(settings)]);
+        await Promise.all([
+          applyWeather(settings.zip),
+          refreshStories(settings),
+          refreshAgenda(settings),
+        ]);
       });
 
       document.getElementById('grok-brief-save')?.addEventListener('click', () => {
@@ -852,7 +908,7 @@ const hasWireStories =
         });
       }
 
-      applyWeather(settings.zip);
+      void applyWeather(settings.zip);
       applyComicVisibility(settings);
       lastRss = {
         news: bootstrap.news || [],

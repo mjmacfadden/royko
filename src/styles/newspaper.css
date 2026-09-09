@@ -208,11 +208,26 @@ a:hover {
 
 .weather-widget-live {
   min-height: 0;
+  overflow: visible;
 }
 
 .weather-widget-live .weatherwidget-io {
   display: block;
   width: 100%;
+  max-height: none;
+  overflow: visible;
+}
+
+.weather-widget-live iframe {
+  max-height: none !important;
+  overflow: visible;
+}
+
+.weather-widget-status {
+  margin: 0.25rem 0 0;
+  font-family: var(--sans-small);
+  font-size: 0.68rem;
+  color: #8a1f1f;
 }
 
 .weather-fallback {
