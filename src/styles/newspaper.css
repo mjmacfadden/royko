@@ -408,11 +408,22 @@ a:hover {
   font-style: italic;
 }
 
-.lead-story h2 {
+.lead-story .lead-hed,
+.lead-story h2.lead-hed {
   font-family: var(--serif-display);
-  font-size: 1.35rem;
-  line-height: 1.12;
-  margin: 0 0 0.25rem;
+  font-size: 1.55rem;
+  line-height: 1.1;
+  margin: 0 0 0.3rem;
+  font-weight: 700;
+  border: 0;
+  letter-spacing: normal;
+  text-transform: none;
+  padding: 0;
+}
+
+/* Slightly larger than column story hed so lead reads as the top story without a label */
+.sheet-unit .lead-story .lead-hed {
+  font-size: 1.45rem;
 }
 
 .lead-deck {

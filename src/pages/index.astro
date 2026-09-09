@@ -564,8 +564,7 @@ const hasWireStories =
           if (existing) roundupHtml = existing.outerHTML;
         }
         root.innerHTML = `<article class="lead-story">
-          <h2 class="section-label">Lead</h2>
-          <h2>${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
+          <h2 class="lead-hed">${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
           ${storyImageHtml(story.imageUrl)}
           <p class="lead-deck">${escapeHtml(story.description || '')}</p>
           <p class="lead-meta">${escapeHtml(story.source || '')}</p>

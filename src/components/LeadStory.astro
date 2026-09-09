@@ -6,13 +6,12 @@ interface Props {
 const { story } = Astro.props;
 ---
 <article class="lead-story">
-  <h2 class="section-label">Lead · From the wires</h2>
-  <h2>
+  <h2 class="lead-hed">
     <a href={story.url} target="_blank" rel="noopener noreferrer">{story.title}</a>
   </h2>
   <p class="lead-deck">{story.description}</p>
   <div class="lead-meta">{story.source} · {story.category}</div>
-  <div class="image-placeholder" role="img" aria-label="Lead image placeholder">
-    {story.image ? 'Image' : 'Image placeholder'} · RSS enclosure later
-  </div>
+  {story.image ? (
+    <img class="story-image" src={story.image} alt="" loading="lazy" />
+  ) : null}
 </article>
