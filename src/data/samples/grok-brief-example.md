@@ -6,6 +6,7 @@ Source: National Weather Service Forecast Discussion, Chicago
 
 **U.S. destroys five Iranian tankers after attacks on a Navy ship**
 *Named source: Reuters, September 9*
+****https://pbs.twimg.com/amplify_video_thumb/2097497733732909056/img/pDq6ih9vJoy0SjBi.jpg (https://pbs.twimg.com/amplify_video_thumb/2097497733732909056/img/pDq6ih9vJoy0SjBi.jpg//)****
 The Pentagon said U.S. forces struck five Iranian-flagged tankers in the Gulf after a missile attack on a Navy destroyer overnight. Tehran denied ordering the strike; oil traffic briefly paused near the Strait of Hormuz.
 
 **Oil climbs past $100 a barrel on Middle East supply fears**

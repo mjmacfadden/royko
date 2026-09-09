@@ -29,7 +29,7 @@ async function loadParser() {
   }
 }
 
-const { parseGrokBrief, grokItemsAsStories } = await loadParser();
+const { parseGrokBrief, grokItemsAsStories, extractImageMarker } = await loadParser();
 const parsed = parseGrokBrief(sample);
 const byKind = Object.fromEntries(parsed.sections.map((s) => [s.kind, s]));
 const cards = grokItemsAsStories(parsed);
@@ -64,6 +64,31 @@ assert(
   ),
   'section titles not misclassified as headlines',
 );
+
+const imgItem = byKind.national.items.find((i) => i.imageUrl);
+assert(!!imgItem, 'national sample has imageUrl from **** marker');
+assert(
+  imgItem &&
+    imgItem.imageUrl.startsWith('https://pbs.twimg.com/') &&
+    !/\*{4}/.test(imgItem.body),
+  'image URL extracted and **** stripped from body',
+);
+assert(
+  cards.some((c) => c.imageUrl && c.imageUrl.includes('pbs.twimg.com')),
+  'BriefStoryCard carries imageUrl',
+);
+
+assert(
+  extractImageMarker('****https://example.com/a.jpg****') === 'https://example.com/a.jpg',
+  'simple ****url**** marker',
+);
+assert(
+  extractImageMarker(
+    '****https://example.com/a.jpg (https://example.com/a.jpg//)****',
+  ) === 'https://example.com/a.jpg',
+  '****url (url//)**** marker',
+);
+assert(extractImageMarker('***Not an image***') === null, '*** not treated as image');
 
 // Legacy ## + ***hed*** dialect still parses
 const legacy = parseGrokBrief(`## National & World

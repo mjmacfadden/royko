@@ -79,7 +79,7 @@ const hasWireStories =
 
     <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
       <h2>Paste Grok Automation brief</h2>
-      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body — fills the paper (Grok is the news backbone). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
+      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body; images as <code>****https://image-url.jpg****</code> (optional duplicate in parens). Fills the paper (Grok is the news backbone). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
       <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
@@ -314,6 +314,13 @@ const hasWireStories =
         a.href = href;
         a.setAttribute('data-label_1', label1);
         a.setAttribute('data-label_2', 'WEATHER');
+        // Transparent background so cream paper shows through; dark text on paper.
+        // Do not set data-mode="Current" — keep multi-day forecast default.
+        a.setAttribute('data-basecolor', 'rgba(255,255,255,0)');
+        a.setAttribute('data-textcolor', '#1a1a1a');
+        a.setAttribute('data-highcolor', '#1a1a1a');
+        a.setAttribute('data-lowcolor', '#444444');
+        a.setAttribute('data-accent', 'rgba(0,0,0,0.05)');
         a.textContent = `${label1} WEATHER`;
         live.appendChild(a);
         const statusEl = document.createElement('p');
@@ -357,13 +364,26 @@ const hasWireStories =
           .replace(/"/g, '&quot;');
       }
 
-      function storyHtml(s: { title: string; description: string; url?: string; source: string; brief?: boolean }) {
+      function storyImageHtml(imageUrl?: string) {
+        if (!imageUrl) return '';
+        return `<img class="story-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`;
+      }
+
+      function storyHtml(s: {
+        title: string;
+        description: string;
+        url?: string;
+        source: string;
+        brief?: boolean;
+        imageUrl?: string;
+      }) {
         const title = s.url
           ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>`
           : escapeHtml(s.title);
         const cls = s.brief ? 'story-item brief-item' : 'story-item';
         return `<article class="${cls}">
           <h3>${title}</h3>
+          ${storyImageHtml(s.imageUrl)}
           <p class="deck">${escapeHtml(s.description)}</p>
           <p class="meta">${escapeHtml(s.source)}</p>
         </article>`;
@@ -407,6 +427,7 @@ const hasWireStories =
             .map(
               (s) => `<article class="brief ${s.brief ? 'brief-item' : ''}">
               <h3>${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>` : escapeHtml(s.title)}</h3>
+              ${storyImageHtml(s.imageUrl)}
               <p>${escapeHtml(s.description || '')}</p>
               <p class="source">${escapeHtml(s.source)}</p>
             </article>`,
@@ -455,6 +476,7 @@ const hasWireStories =
         root.innerHTML = `<article class="lead-story">
           <h2 class="section-label">Lead</h2>
           <h2>${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
+          ${storyImageHtml(story.imageUrl)}
           <p class="lead-deck">${escapeHtml(story.description || '')}</p>
           <p class="lead-meta">${escapeHtml(story.source || '')}</p>
         </article>${roundupHtml}`;
@@ -561,7 +583,13 @@ const hasWireStories =
 
         // Lead: first national/brief item, or RSS lead if enabled
         const leadFromGrok = briefNews[0]
-          ? { title: briefNews[0].title, description: briefNews[0].description, source: briefNews[0].source, url: undefined }
+          ? {
+              title: briefNews[0].title,
+              description: briefNews[0].description,
+              source: briefNews[0].source,
+              url: undefined,
+              imageUrl: briefNews[0].imageUrl,
+            }
           : null;
         const newsRest = briefNews.slice(leadFromGrok && !useRss ? 1 : 0);
 

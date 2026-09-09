@@ -5,7 +5,7 @@ Personal morning newspaper for Northbrook, IL. **Not a news dashboard** — the 
 **Masthead:** THE DAILY MIKE (Manufacturing Consent + Playfair for headlines)  
 **Tagline:** Independent · Personal · Daily  
 **Location context:** Northbrook / ZIP 60062 (weather & dateline — not the paper’s name)  
-**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen; compact high/low (+ Grok weather prose) for print  
+**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen (transparent `data-basecolor` so cream paper shows through); compact high/low (+ Grok weather prose) for print  
 **Sample edition:** Wednesday, September 9, 2026 · Vol. I, No. 214
 
 ## Quick start
@@ -83,6 +83,7 @@ Source: National Weather Service…
 
 **Headline here**
 *Named source: Reuters, September 9*
+****https://pbs.twimg.com/amplify_video_thumb/2097497733732909056/img/pDq6ih9vJoy0SjBi.jpg****
 Story body paragraph(s) in plain text.
 
 **Another headline**
@@ -117,7 +118,8 @@ Optional masthead lines (`**The Daily Mike**`, date, timezone, lede) may appear 
 2. `**Headline**` alone on a line = story headline.
 3. `*Named source: Outlet, Date*` (italic single asterisks) = byline/source. Plain `Named source:` / `Source:` and legacy `**byline**` still work.
 4. Plain paragraphs = story body until the next headline or section. Weather + Markets are prose under the section; What to watch uses `-` bullets.
-5. Alternates still accepted: `## Section` headers, and older `***Headline***` + `**byline**` dialect.
+5. Images (optional): alone on a line under a story (or before the next story), use quadruple asterisks — `****https://image-url.jpg****`. Automation may also emit a duplicate URL in parentheses: `****https://…jpg (https://…jpg//)****`. The primary URL is attached as `imageUrl` on the story; the raw `****…****` line is stripped from body text. Rendered images fit the column (`max-width: 100%`, constrained height).
+6. Alternates still accepted: `## Section` headers, and older `***Headline***` + `**byline**` dialect.
 
 **How it maps onto the paper**
 

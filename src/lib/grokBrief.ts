@@ -7,6 +7,8 @@
  *   **Headline**                ← story headline
  *   *Named source: Outlet, Date*  (or plain Named source: / Source:)
  *   plain body paragraphs
+ *   ****https://image-url.jpg****   ← optional story image (alone on a line;
+ *       optional duplicate URL in parens, e.g. ****url (url//)****)
  *   - bullets under "What to watch today"
  *   Compiled … footer
  *
@@ -29,6 +31,8 @@ export interface GrokStoryItem {
   headline: string;
   body: string;
   source?: string;
+  /** Optional image from ****https://…**** marker in the paste. */
+  imageUrl?: string;
 }
 
 export interface GrokSection {
@@ -38,6 +42,8 @@ export interface GrokSection {
   paragraphs: string[];
   items: GrokStoryItem[];
   bullets: string[];
+  /** Image before any story in the section (rare). */
+  imageUrl?: string;
 }
 
 export interface ParsedGrokBrief {
@@ -113,6 +119,34 @@ function isFooter(line: string): boolean {
 function isBullet(line: string): string | null {
   const m = line.match(/^\s*[-*•]\s+(.+)$/);
   return m ? m[1].trim() : null;
+}
+
+/**
+ * Image marker alone on a line (quadruple asterisks):
+ *   ****https://example.com/img.jpg****
+ *   ****https://…/img.jpg (https://…/img.jpg//)****
+ * Returns the primary https URL, or null.
+ */
+export function extractImageMarker(line: string): string | null {
+  const t = line.trim();
+  const m = t.match(
+    /^\*{4}\s*(https?:\/\/[^\s*]+?)(?:\s*\(\s*(https?:\/\/[^)]+?)\s*\))?\s*\*{4}\s*$/,
+  );
+  if (!m) return null;
+  // Primary URL is before the optional paren duplicate; clean trailing // artifacts.
+  const raw = (m[1] || m[2] || '').trim();
+  const url = raw.replace(/\/{2,}$/, '');
+  if (!/^https?:\/\//i.test(url)) return null;
+  return url;
+}
+
+/** Strip ****image**** markers that leaked into body prose. */
+export function stripImageMarkers(text: string): string {
+  return text
+    .replace(/\*{4}\s*https?:\/\/[^\s*]+?(?:\s*\([^)]*\))?\s*\*{4}/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .trim();
 }
 
 /**
@@ -387,9 +421,15 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   let pendingItem: GrokStoryItem | null = null;
   let sawMarkdownHeading = false;
 
+  let pendingSectionImage: string | undefined;
+
   const flushItem = () => {
     if (current && pendingItem) {
-      pendingItem.body = pendingItem.body.trim();
+      pendingItem.body = stripImageMarkers(pendingItem.body.trim());
+      if (!pendingItem.imageUrl && pendingSectionImage) {
+        pendingItem.imageUrl = pendingSectionImage;
+        pendingSectionImage = undefined;
+      }
       current.items.push(pendingItem);
       pendingItem = null;
     }
@@ -397,6 +437,10 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   const startSection = (heading: string) => {
     flushItem();
+    if (current && pendingSectionImage) {
+      current.imageUrl = pendingSectionImage;
+      pendingSectionImage = undefined;
+    }
     current = {
       heading,
       kind: classifyHeading(heading),
@@ -415,6 +459,17 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     if (isFooter(trimmed)) {
       flushItem();
       footer = trimmed;
+      continue;
+    }
+
+    // ****https://…**** image markers (must run before *** section/headline)
+    const imageUrl = extractImageMarker(trimmed);
+    if (imageUrl) {
+      if (pendingItem) {
+        pendingItem.imageUrl = imageUrl;
+      } else {
+        pendingSectionImage = imageUrl;
+      }
       continue;
     }
 
@@ -468,7 +523,12 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     const hl = isHeadlineLine(trimmed);
     if (hl) {
       flushItem();
-      pendingItem = { headline: hl.headline, body: hl.rest || '' };
+      pendingItem = {
+        headline: hl.headline,
+        body: hl.rest || '',
+        imageUrl: pendingSectionImage,
+      };
+      pendingSectionImage = undefined;
       continue;
     }
 
@@ -495,6 +555,10 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     current.paragraphs.push(trimmed);
   }
   flushItem();
+  if (current && pendingSectionImage) {
+    current.imageUrl = pendingSectionImage;
+    pendingSectionImage = undefined;
+  }
 
   // Heuristic: sections that only have paragraphs (lost **) → try headline pairs
   for (const sec of sections) {
@@ -600,6 +664,7 @@ export interface BriefStoryCard {
   source: string;
   kind: GrokSectionKind;
   column: ReturnType<typeof sectionColumn>;
+  imageUrl?: string;
 }
 
 /** Flatten story-like Grok items for interleaving with RSS. */
@@ -617,6 +682,7 @@ export function grokItemsAsStories(parsed: ParsedGrokBrief): BriefStoryCard[] {
         source: item.source ? `Brief · ${item.source}` : 'Brief',
         kind: sec.kind,
         column: col,
+        imageUrl: item.imageUrl,
       });
     }
   }

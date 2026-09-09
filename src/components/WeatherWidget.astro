@@ -6,6 +6,10 @@ interface Props {
 const { weather } = Astro.props;
 /** Default Northbrook forecast7 embed; client updates from Settings ZIP. */
 const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
+/** Transparent base so cream paper shows through; dark text for readability. */
+const basecolor = 'rgba(255,255,255,0)';
+const textcolor = '#1a1a1a';
+const accent = 'rgba(0,0,0,0.05)';
 ---
 <section class="weather-strip" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
   <!-- Screen: weatherwidget.io interactive embed (below masthead) -->
@@ -15,12 +19,17 @@ const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
       href={widgetHref}
       data-label_1="NORTHBROOK"
       data-label_2="WEATHER"
+      data-basecolor={basecolor}
+      data-textcolor={textcolor}
+      data-highcolor={textcolor}
+      data-lowcolor="#444444"
+      data-accent={accent}
       >NORTHBROOK WEATHER</a
     >
     <p class="weather-widget-status" data-weather-status hidden></p>
   </div>
 
-  <!-- Print / offline: compact high-low + optional Grok prose -->
+  <!-- Print / fallback: compact high-low + optional Grok prose -->
   <div class="weather-fallback" data-weather-print>
     <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
     <div class="temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</div>
