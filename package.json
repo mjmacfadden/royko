@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@astrojs/node": "^11.1.5",
+    "@vivliostyle/print": "^2.45.1",
     "astro": "^7.3.2",
     "fast-xml-parser": "^5.11.1",
     "qrcode": "^1.5.4"
@@ -21,7 +22,7 @@
   "allowScripts": {
     "esbuild": true
   },
-  "description": "Personal morning newspaper \u2014 THE DAILY MIKE",
+  "description": "Personal morning newspaper — THE DAILY MIKE",
   "devDependencies": {
     "@types/qrcode": "^1.5.6"
   }

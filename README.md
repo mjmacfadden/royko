@@ -18,7 +18,7 @@ npm run dev
 ```
 
 Open **http://localhost:4321/**  
-Print: **Print today’s paper** (or ⌘/Ctrl+P). Screen chrome & settings are hidden when printing.
+Print: **Print edition** (Vivliostyle) or **Preview print pages** — also ⌘/Ctrl+P. Screen chrome & settings stay on the live editor; print uses a dedicated HTML document.
 
 ```bash
 npm run build    # Node SSR build → dist/
@@ -40,7 +40,7 @@ Example: `http://localhost:4321/answers/2026-09-09`
 | Area | Status |
 |------|--------|
 | Astro app + 3-page newspaper shell | ✅ |
-| Print-first continuous 3-column flow (dense; features follow news; empty space only after last content) | ✅ |
+| Print-first continuous flow + **Vivliostyle** letter pagination (`@vivliostyle/print`, root 3-col) | ✅ |
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
 | Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
@@ -210,15 +210,47 @@ src/
     edition.ts            merge live → Edition
     settings.ts           localStorage settings + Grok store
     dateFilter.ts         America/Chicago today filter
+    vivlioPrint.ts        Vivliostyle printHTML + print-doc builder (client)
   pages/
     index.astro
     answers/[date].astro
     api/rss.ts            POST settings-driven fetch
     api/calendar.ts       POST multi-ICS → today’s agenda
-  styles/newspaper.css    print rules are authoritative
+  styles/
+    newspaper.css         screen / live editor (legacy @media print kept as fallback)
+    vivliostyle-print.css print HTML only — letter + root 3-col for Vivliostyle
 public/samples/           served sample brief for Settings “Load sample”
 ```
+
+## Print (Vivliostyle)
+
+Print is more important than screen. The live editor keeps the cream-paper UX; **Print edition** / ⌘P uses [Vivliostyle](https://vivliostyle.org/) (`@vivliostyle/print` → `printHTML`) so pagination is real CSS paged media, not browser `@media print` columns.
+
+**How it works**
+
+1. Client clones the composed `.edition-document` (post–Grok paste: weather B&W strip, agenda, stories, games, comics).
+2. Strips screen-only UI (settings, paste panel, weather iframe, nav chrome).
+3. Wraps it in a minimal HTML document with Google Fonts (Merriweather / Manufacturing Consent / Playfair / Libre Franklin) and `src/styles/vivliostyle-print.css`.
+4. **Root multicol:** `html { column-count: 3; … }` — Vivliostyle’s own root-multicol engine packs columns across letter pages (`@page { size: letter; margin: ~0.4in; }`). Masthead / weather / front pack / features use page floats so they span the page width.
+5. `printHTML(htmlDoc, { title: 'The Daily Mike' })` paginates in a hidden iframe, then opens the browser print dialog (live DOM untouched).
+6. **Preview print pages** uses the same HTML + Vivliostyle layout, shown in an on-screen iframe overlay (Print / Close). Digital preview === print pages.
+
+Module: `src/lib/vivlioPrint.ts` (dynamic `import('@vivliostyle/print')` — client-only).
+
+Legacy `newspaper.css` `@media print` remains as a non-Vivliostyle fallback if something bypasses the Print button; primary path is Vivliostyle.
+
+### Verify Print
+
+1. `npm run dev` → http://localhost:4321/
+2. Paste a Grok brief so the edition is composed.
+3. Click **Preview print pages** — confirm letter pages, 3-col story flow, B&W weather (not the iframe), dense packing.
+4. Click **Print edition** (or ⌘/Ctrl+P) — system print dialog should show the same Vivliostyle pages.
+5. `npm run build` must succeed.
 
 ## License / personal use
 
 Built for Mike Macfadden (Northbrook, America/Chicago). Family-facing morning paper.
+
+### AGPL note — Vivliostyle
+
+`@vivliostyle/print` is licensed under **AGPL-3.0**. Personal / family use of THE DAILY MIKE is fine. If you distribute a modified version of this app (or host it as a network service that others use) in a way that triggers AGPL obligations, you must disclose that Vivliostyle is AGPL and comply with its terms (typically: offer corresponding source for the AGPL-covered parts). See [Vivliostyle license FAQ](https://vivliostyle.org/faq/#vivliostyle-license-faq). The rest of this personal newspaper project is not dual-licensed with Vivliostyle — we only consume the `printHTML` entry point.
