@@ -67,46 +67,52 @@ Prefs persist in `localStorage` (`daily-mike-settings-v1`). Grok paste: `daily-m
 
 Paste the morning Automation output. Parser: `src/lib/grokBrief.ts` · sample: `src/data/samples/grok-brief-example.md` (also `/samples/grok-brief-example.md`).
 
-#### Paste format
-
-Copy this into your Grok system prompt (or paste a matching brief into Settings / Paste brief):
+#### Paste format (canonical — what Grok emits now)
 
 ```
-**The Daily Mike**
-Wednesday, September 9, 2026
-America/Chicago
+***Weather — Northbrook, Illinois***
+Prose paragraphs (no headlines required).
+Source: National Weather Service…
 
-Optional lede paragraph…
+***National & World***
 
-## National & World
+**Headline here**
+*Named source: Reuters, September 9*
+Story body paragraph(s) in plain text.
 
-***Headline here***
-**Named source: AP, Sept. 8**
-Story body paragraph(s) in plain text (no required italics).
-
-***Another headline***
-**byline or source**
+**Another headline**
+*Named source: Associated Press, September 9*
 More body…
 
-## Weather — Northbrook, Illinois
-Prose paragraphs (no headlines required).
+***United States / Illinois / Chicago***
+**Headline**
+*Named source: …*
+body
 
-## What to watch today
+***Sports***
+**Headline**
+*Named source: …*
+body
+
+***Markets***
+Prose only (becomes one Brief card in Business · Tech).
+
+***What to watch today***
 - bullet one
 - bullet two
 
-Compiled 5:50 a.m. CT from 28 sources.
+Compiled 8:42 a.m. CT from 34 sources.
 ```
+
+Optional masthead lines (`**The Daily Mike**`, date, timezone, lede) may appear *before* the first `***Section***` — both with and without are fine.
 
 **Rules**
 
-1. `## Section` = section header (kind classification unchanged: weather / national / local / sports / markets / watch).
-2. `***Headline***` alone on a line (or headline then body after closing `***`) = story headline — prefer **triple-asterisk** over double.
-3. `**byline/source**` alone on the line immediately after a headline = byline/source. Plain `Named source:` / `Source:` lines still work.
-4. Plain paragraphs = story body until the next `***` headline or `##` section. **Do not** wrap body in italic `*…*` (multi-paragraph italics break).
-5. Backward compatible: older `**Headline**` alone-on-line pastes still parse; when both possible, `***` wins for headlines.
-
-Typical sections: `## Weather — …`, `## National & World`, `## United States / Illinois / Chicago`, `## Sports`, `## Markets`, `## What to watch today`.
+1. `***Section Name***` alone on a line = **section** when it matches known kinds/titles (Weather, National & World, United States / Illinois / Chicago, Sports, Markets, What to watch today) or looks like a section (`—`, `/`, keywords). Otherwise `***…***` is still treated as a legacy headline.
+2. `**Headline**` alone on a line = story headline.
+3. `*Named source: Outlet, Date*` (italic single asterisks) = byline/source. Plain `Named source:` / `Source:` and legacy `**byline**` still work.
+4. Plain paragraphs = story body until the next headline or section. Weather + Markets are prose under the section; What to watch uses `-` bullets.
+5. Alternates still accepted: `## Section` headers, and older `***Headline***` + `**byline**` dialect.
 
 **How it maps onto the paper**
 

@@ -72,7 +72,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
     <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
       <h2>Paste Grok Automation brief</h2>
-      <p class="settings-help">Paste format: <code>##</code> sections, <code>***Headline***</code>, optional <code>**byline**</code>, plain body — interleaves with RSS as Brief cards (never a plain-text dump). Full dialect in README.</p>
+      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body — interleaves with RSS as Brief cards (never a plain-text dump). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
       <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
@@ -543,7 +543,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
           lastGrok = null;
           composeEdition(lastRss, null);
           setGrokStatus(
-            parsed.warning || 'Paste needs markdown ## sections',
+            parsed.warning || 'Paste needs ***Section*** / ## sections and **Headline** stories',
             true,
           );
           showPage(1);

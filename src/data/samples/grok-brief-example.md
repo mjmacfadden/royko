@@ -1,71 +1,57 @@
-**The Daily Mike**
-Wednesday, September 9, 2026
-America/Chicago
-
-Cool air and a quiet midweek calendar: leaf-collection talk at the village, a short Fed hold hangover, and the Bears on a compressed practice week. Here’s what matters before the coffee cools.
-
-## Weather — Northbrook, Illinois
-
+***Weather — Northbrook, Illinois***
 Mostly sunny after a chilly dawn. High near 67°F, low around 52°F. Light northwest breeze; good walking weather if you’re out by late morning. No rain in the afternoon window.
+Source: National Weather Service Forecast Discussion, Chicago
 
-## National & World
+***National & World***
 
-***Fed holds rates as markets open mixed***
-**Named source: Market Desk, Sept. 8**
-Policymakers kept the target range unchanged, citing sticky services inflation against softer goods prices. Futures flipped between risk-on and caution in the first hour.
+**U.S. destroys five Iranian tankers after attacks on a Navy ship**
+*Named source: Reuters, September 9*
+The Pentagon said U.S. forces struck five Iranian-flagged tankers in the Gulf after a missile attack on a Navy destroyer overnight. Tehran denied ordering the strike; oil traffic briefly paused near the Strait of Hormuz.
 
-***European energy desks watch late-summer storm tracks***
-**Wire Brief**
-Traders priced a quieter Atlantic week, but residual Gulf moisture still shows up in overnight models.
+**Oil climbs past $100 a barrel on Middle East supply fears**
+*Named source: Associated Press, September 9*
+Brent crude jumped above $100 for the first time since early summer as traders priced a wider disruption risk. U.S. pump prices are expected to firm into the weekend.
 
-***Capitol maneuvering continues on spending riders***
-**Named source: Illinois Wire**
-Leadership talks resumed with education formulas still the loudest sticking point for the short session.
+**Fed officials signal patience after sticky services inflation**
+*Named source: Bloomberg, September 9*
+Several policymakers said they want clearer cooling in services before cutting again. Futures pared rate-cut odds for the next meeting.
 
-## United States / Illinois / Chicago
+***United States / Illinois / Chicago***
 
-***Village reviews fall leaf collection calendar***
-**Source: Village of Northbrook**
+**Village reviews fall leaf collection calendar**
+*Named source: Village of Northbrook*
 Public Works posted draft 2026 zones for Northbrook, with the first sweep expected in late October. Keep piles free of branches and bagged yard waste.
 
-***Metra reports normal Wednesday service on MD-N***
-**Metra**
+**Metra reports normal Wednesday service on MD-N**
+*Named source: Metra*
 No planned slow zones affecting Northbrook station this morning.
 
-***District 28 notes early release Thursday***
-**District 28**
+**District 28 notes early release Thursday**
+*Named source: District 28*
 Elementary buildings dismiss early for professional development — plan after-school pickup accordingly.
 
-## Sports
+***Sports***
 
-***Bears install short-week plan after Thursday win***
-**Named source: Chicago Sports Desk**
+**Bears install short-week plan after Thursday win**
+*Named source: Chicago Sports Desk*
 Practice windows are compressed; the injury report is due Wednesday afternoon.
 
-***Cubs close homestand with pitching decisions pending***
-**North Side Notes**
+**Cubs close homestand with pitching decisions pending**
+*Named source: North Side Notes*
 A rotation spot remains unsettled for the weekend series.
 
-***Youth soccer registration fills for fall rec leagues***
-**Northbrook Park District**
+**Youth soccer registration fills for fall rec leagues**
+*Named source: Northbrook Park District*
 Park District waitlists open Friday for U8–U12.
 
-## Markets
+***Markets***
+Equities opened mixed with energy leading and rate-sensitive names lagging. The dollar firmed; Treasury yields edged higher on the Fed patience message. Local note: North Cook suburban office vacancies ticked down again on modest professional-services leasing.
 
-***Suburban office vacancies tick down again***
-**North Shore Business**
-North Cook submarket saw modest leasing from professional services firms.
-
-***Chipmakers outline next AI accelerator cycle***
-**Named source: Tech Wire**
-Analysts flag power and cooling — not silicon — as the binding constraints for data centers.
-
-## What to watch today
-
+***What to watch today***
 - Staff meeting, 8:30 a.m. — Conference room B
 - Pick up Jack, 11:00 a.m. — school early release
 - Dentist checkup, 1:00 p.m. — Northbrook Family Dental
 - Bears injury report mid-afternoon
 - Puzzle page before dinner if the crossword still has empty squares
 
-Compiled 5:50 a.m. CT from 28 sources.
+Compiled 8:42 a.m. CT from 34 sources.

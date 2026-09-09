@@ -1,15 +1,19 @@
 /**
  * Parse Mike's Grok Automation morning brief.
- * Canonical paste dialect:
- *   **The Daily Mike**
- *   date line (+ optional America/Chicago line)
- *   optional lede
- *   ## Section headers
- *   ***Headline***  (prefer triple-asterisk; **Headline** still accepted)
- *   **byline/source**  (optional, alone on the next line)
- *   plain-text body paragraphs (no italic *wrappers* required)
+ *
+ * Canonical paste dialect (what Grok emits now):
+ *   optional **The Daily Mike** / date / lede
+ *   ***Section Name***          ← SECTION (Weather, National & World, …)
+ *   **Headline**                ← story headline
+ *   *Named source: Outlet, Date*  (or plain Named source: / Source:)
+ *   plain body paragraphs
  *   - bullets under "What to watch today"
  *   Compiled … footer
+ *
+ * Alternates still accepted:
+ *   ## Section headers
+ *   ***Headline*** (older dialect — only when ***text*** is NOT a known section)
+ *   **byline/source** after a headline
  */
 
 export type GrokSectionKind =
@@ -43,7 +47,7 @@ export interface ParsedGrokBrief {
   footer: string | null;
   sections: GrokSection[];
   raw: string;
-  /** True when ## / headline structure was found and stories/sections extracted. */
+  /** True when section / headline structure was found and stories/sections extracted. */
   structured: boolean;
   /** Human-readable parse issue (e.g. missing markdown). */
   warning: string | null;
@@ -76,8 +80,26 @@ export function normalizeBriefText(raw: string): string {
     .trim();
 }
 
+/** Unwrap a single pair of italic *…* markers (not ** or ***). */
+function unwrapItalicMarkers(s: string): string {
+  const t = s.trim();
+  const m = t.match(/^\*([^*][\s\S]*?)\*$/);
+  if (!m) return t;
+  // Reject if it still looks like bold/triple (**x** starts with *)
+  if (t.startsWith('**')) return t;
+  return m[1].trim();
+}
+
 function isSourceLine(line: string): string | null {
-  const t = line.trim();
+  let t = line.trim();
+  // *Named source: …* or *Source: …*
+  if (/^\*[^*]/.test(t) && t.endsWith('*') && !t.startsWith('**')) {
+    t = unwrapItalicMarkers(t);
+  }
+  // **Named source: …**
+  if (/^\*\*[^*]/.test(t) && /\*\*$/.test(t) && !t.startsWith('***')) {
+    t = stripBoldMarkers(t);
+  }
   const m =
     t.match(/^(?:Named\s+)?[Ss]ource:\s*(.+)$/) ||
     t.match(/^Named\s+source:\s*(.+)$/i);
@@ -99,58 +121,104 @@ function isBullet(line: string): string | null {
  */
 function isHeading(line: string): string | null {
   const t = line.trim();
-  // ##Heading / ## Heading / ### Heading / ## Heading ##
   const m = t.match(/^#{2,6}\s*(.+?)(?:\s*#*)?$/);
   if (!m) return null;
   const inner = m[1].replace(/#+\s*$/, '').trim();
   if (!inner) return null;
-  // Don't treat a lone bold title as a heading
   if (/^\*\*.+\*\*$/.test(inner) && /^the daily mike$/i.test(stripBoldMarkers(inner))) {
     return null;
   }
   return stripBoldMarkers(inner);
 }
 
+/** Known section titles when paste lost ## / *** markers. */
+const BARE_SECTION_RE =
+  /^(weather(?:\s*[—–-].*)?|national(?:\s*&\s*world)?|world|united states(?:\s*\/\s*illinois(?:\s*\/\s*chicago)?)?|illinois(?:\s*\/\s*chicago)?|chicago|local|sports|markets|business(?:\s*[·•]\s*tech)?|what to watch(?:\s+today)?)$/i;
+
+/** Extract inner text from a lone ***…*** line, or null. */
+function tripleAsteriskInner(line: string): string | null {
+  const t = line.trim();
+  const m = t.match(/^\*\*\*(.+?)\*\*\*\s*$/);
+  if (!m) return null;
+  const inner = m[1].trim();
+  if (!inner || /^the daily mike$/i.test(inner)) return null;
+  return inner;
+}
+
 /**
- * Prefer ***Headline*** (triple asterisk). Fall back to **Headline** (legacy).
- * When both patterns could match, *** wins.
+ * True when ***inner*** should be a SECTION, not a story headline.
+ * Prefer known kinds / titles; also section-like titles with — or /.
+ */
+function looksLikeSectionTitle(inner: string): boolean {
+  if (!inner || inner.length > 100) return false;
+  if (classifyHeading(inner) !== 'other') return true;
+  if (BARE_SECTION_RE.test(inner)) return true;
+  // e.g. "Weather — Northbrook, Illinois" / "United States / Illinois / Chicago"
+  if (/[—\/]/.test(inner) && classifyHeading(inner) !== 'other') return true;
+  if (
+    /[—\/]/.test(inner) &&
+    /\b(weather|national|world|united states|illinois|chicago|sports|markets|watch)\b/i.test(
+      inner,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** ***Section Name*** alone on a line → section heading, or null if headline. */
+function isTripleSection(line: string): string | null {
+  const inner = tripleAsteriskInner(line);
+  if (!inner) return null;
+  if (looksLikeSectionTitle(inner)) return inner;
+  return null;
+}
+
+/**
+ * Story headline:
+ *   Prefer **Headline** (current Grok dialect).
+ *   ***Headline*** only when NOT classified as a section (older dialect).
  * Returns [headline, optionalSameLineBody].
  */
 function isHeadlineLine(line: string): { headline: string; rest: string } | null {
   const t = line.trim();
 
-  // ***Headline*** alone
-  let m = t.match(/^\*\*\*(.+?)\*\*\*\s*$/);
-  if (m) {
-    const inner = m[1].trim();
-    if (!inner || /^the daily mike$/i.test(inner)) return null;
-    return { headline: inner, rest: '' };
+  // ***…*** — section wins elsewhere; leftover *** is legacy headline
+  const tripleInner = tripleAsteriskInner(t);
+  if (tripleInner !== null) {
+    if (looksLikeSectionTitle(tripleInner)) return null;
+    return { headline: tripleInner, rest: '' };
   }
-  // ***Headline*** then more text on same line
-  m = t.match(/^\*\*\*(.+?)\*\*\*\s+(.+)$/);
+  // ***Headline*** then more text on same line (legacy)
+  let m = t.match(/^\*\*\*(.+?)\*\*\*\s+(.+)$/);
   if (m) {
     const inner = m[1].trim();
     if (!inner || /^the daily mike$/i.test(inner)) return null;
+    if (looksLikeSectionTitle(inner)) return null;
     if (inner.length > 140) return null;
     return { headline: inner, rest: m[2].trim() };
   }
 
-  // Incomplete / odd triple — don't let ** fallback mangle it
   if (/^\*\*\*/.test(t)) return null;
 
-  // Legacy: **Headline** alone
+  // Canonical: **Headline** alone
   m = t.match(/^\*\*(.+?)\*\*\s*$/);
   if (m) {
     const inner = m[1].trim();
     if (!inner || /^the daily mike$/i.test(inner)) return null;
+    // Don't treat "**Named source: …**" as a headline — source/byline instead
+    if (isSourceLine(`**${inner}**`) || /^(?:Named\s+)?[Ss]ource:/i.test(inner)) {
+      return null;
+    }
     return { headline: inner, rest: '' };
   }
-  // Legacy: **Headline** then more text on same line
+  // **Headline** then more text on same line
   m = t.match(/^\*\*(.+?)\*\*\s+(.+)$/);
   if (m) {
     const inner = m[1].trim();
     if (!inner || /^the daily mike$/i.test(inner)) return null;
     if (inner.length > 140) return null;
+    if (/^(?:Named\s+)?[Ss]ource:/i.test(inner)) return null;
     return { headline: inner, rest: m[2].trim() };
   }
   return null;
@@ -163,12 +231,21 @@ function isHeadlineLine(line: string): { headline: string; rest: string } | null
 function isBylineLine(line: string): string | null {
   const t = line.trim();
   if (/^\*\*\*/.test(t)) return null;
+  // Italic *Named source: …* — handled via isSourceLine in the main loop
+  const srcItalic = isSourceLine(t);
+  if (srcItalic && /^\*[^*]/.test(t) && !t.startsWith('**')) return srcItalic;
+
   const m = t.match(/^\*\*(.+?)\*\*\s*$/);
   if (!m) return null;
   const inner = m[1].trim();
   if (!inner || /^the daily mike$/i.test(inner)) return null;
-  const named = isSourceLine(inner);
-  return named ?? inner;
+  const named = isSourceLine(inner) || isSourceLine(`**${inner}**`);
+  // Only treat as byline when it looks like a source/byline, OR short attribution.
+  // Prefer Named source: / Source: ; otherwise accept short bold lines as bylines
+  // (legacy **Wire Brief**) when caller already gated on pending empty-body item.
+  if (named) return named;
+  if (inner.length <= 80 && !/[.!?]$/.test(inner)) return inner;
+  return null;
 }
 
 function isTimezoneLine(line: string): boolean {
@@ -176,15 +253,18 @@ function isTimezoneLine(line: string): boolean {
   return /^(America\/Chicago|US\/Central|[A-Za-z]+\/[A-Za-z_]+)$/i.test(t);
 }
 
-/** Known section titles when paste lost ## markers. */
-const BARE_SECTION_RE =
-  /^(weather(?:\s*[—–-].*)?|national(?:\s*&\s*world)?|world|united states(?:\s*\/\s*illinois(?:\s*\/\s*chicago)?)?|illinois(?:\s*\/\s*chicago)?|chicago|local|sports|markets|business(?:\s*[·•]\s*tech)?|what to watch(?:\s+today)?)$/i;
-
 function isBareSectionHeading(line: string): string | null {
   const t = stripBoldMarkers(line.trim());
   if (!t || t.length > 80) return null;
+  // Ignore *** / ** wrappers already stripped; also strip lone *
+  const bare = t.replace(/^\*+|\*+$/g, '').trim();
+  if (BARE_SECTION_RE.test(bare)) return bare;
   if (BARE_SECTION_RE.test(t)) return t;
   return null;
+}
+
+function isSectionStart(line: string): string | null {
+  return isHeading(line) || isTripleSection(line) || isBareSectionHeading(line);
 }
 
 /**
@@ -262,14 +342,12 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     i++;
   }
 
-  // Skip blanks
   while (i < lines.length && !lines[i].trim()) i++;
 
-  // Date line (before first ##)
+  // Date line (before first section)
   if (
     i < lines.length &&
-    !isHeading(lines[i]) &&
-    !isBareSectionHeading(lines[i]) &&
+    !isSectionStart(lines[i]) &&
     /20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|america\/chicago|\bCT\b/i.test(
       lines[i],
     )
@@ -280,7 +358,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   while (i < lines.length && !lines[i].trim()) i++;
 
-  // Optional standalone timezone line (e.g. America/Chicago)
   if (i < lines.length && isTimezoneLine(lines[i])) {
     const tz = lines[i].trim();
     dateLine = dateLine ? `${dateLine} · ${tz}` : tz;
@@ -291,11 +368,7 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   // Lede / pre-heading paragraphs until first section heading
   const ledeParts: string[] = [];
-  while (
-    i < lines.length &&
-    !isHeading(lines[i]) &&
-    !isBareSectionHeading(lines[i])
-  ) {
+  while (i < lines.length && !isSectionStart(lines[i])) {
     const line = lines[i];
     if (isFooter(line)) {
       footer = line.trim();
@@ -305,7 +378,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     if (line.trim()) ledeParts.push(line.trim());
     i++;
   }
-  // Cap lede — never dump the whole paste into the roundup box
   let lede = ledeParts.length ? ledeParts.join(' ') : null;
   if (lede && lede.length > 600) {
     lede = lede.slice(0, 597).trimEnd() + '…';
@@ -346,10 +418,17 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    const heading = isHeading(trimmed);
-    if (heading) {
+    const mdHeading = isHeading(trimmed);
+    if (mdHeading) {
       sawMarkdownHeading = true;
-      startSection(heading);
+      startSection(mdHeading);
+      continue;
+    }
+
+    const tripleSec = isTripleSection(trimmed);
+    if (tripleSec) {
+      sawMarkdownHeading = true;
+      startSection(tripleSec);
       continue;
     }
 
@@ -360,7 +439,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     }
 
     if (!current) {
-      // Stray pre-section line — fold into lede if still short
       if (!lede) lede = trimmed;
       else if (lede.length < 400) lede = `${lede} ${trimmed}`;
       continue;
@@ -373,11 +451,16 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    // **byline** immediately after a headline (body still empty) — not a new story
+    // Byline / *Named source:* immediately after a headline (body still empty)
     if (pendingItem && !pendingItem.body.trim() && !pendingItem.source) {
       const byline = isBylineLine(trimmed);
       if (byline) {
         pendingItem.source = byline;
+        continue;
+      }
+      const earlySrc = isSourceLine(trimmed);
+      if (earlySrc) {
+        pendingItem.source = earlySrc;
         continue;
       }
     }
@@ -392,9 +475,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     const src = isSourceLine(trimmed);
     if (src && pendingItem) {
       pendingItem.source = src;
-      // Legacy pastes put Source: after the body — end the story.
-      // New dialect puts byline before body (handled above); plain Source:
-      // with empty body stays open for following paragraphs.
       if (pendingItem.body.trim()) {
         flushItem();
       }
@@ -406,19 +486,41 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    // Free prose in section (weather, etc.)
+    // Free prose in section (weather, markets, etc.)
+    // Skip orphan Source: lines under weather — fold into last paragraph note
+    if (src && current.paragraphs.length) {
+      current.paragraphs[current.paragraphs.length - 1] += ` (Source: ${src})`;
+      continue;
+    }
     current.paragraphs.push(trimmed);
   }
   flushItem();
 
   // Heuristic: sections that only have paragraphs (lost **) → try headline pairs
   for (const sec of sections) {
-    if (sec.items.length === 0 && sec.paragraphs.length >= 2 && sec.kind !== 'weather' && sec.kind !== 'watch') {
+    if (
+      sec.items.length === 0 &&
+      sec.paragraphs.length >= 2 &&
+      sec.kind !== 'weather' &&
+      sec.kind !== 'watch' &&
+      sec.kind !== 'markets'
+    ) {
       const guessed = heuristicItemsFromParagraphs(sec.paragraphs);
       if (guessed.length) {
         sec.items = guessed;
         sec.paragraphs = [];
       }
+    }
+  }
+
+  // Markets prose-only → one Brief card for Business · Tech interleave
+  for (const sec of sections) {
+    if (sec.kind === 'markets' && sec.items.length === 0 && sec.paragraphs.length) {
+      sec.items.push({
+        headline: 'Markets',
+        body: sec.paragraphs.join(' '),
+      });
+      sec.paragraphs = [];
     }
   }
 
@@ -428,7 +530,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     sections.some((s) => s.kind === 'weather' && s.paragraphs.length) ||
     sections.some((s) => s.kind === 'watch' && s.bullets.length);
 
-  // No sections at all — do NOT dump raw body as a fake "Brief" paragraph section
   if (!sections.length) {
     return {
       title,
@@ -439,11 +540,10 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       raw: text,
       structured: false,
       warning:
-        'Paste needs markdown ## sections (and ***Headlines***). Raw text was not dumped onto the paper.',
+        'Paste needs ***Section*** (or ## Section) markers and **Headline** stories. Raw text was not dumped onto the paper.',
     };
   }
 
-  // Sections found but no stories / weather / watch content
   if (!hasUseful) {
     return {
       title,
@@ -454,8 +554,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       raw: text,
       structured: false,
       warning: sawMarkdownHeading
-        ? 'Found ## sections but no ***Headline*** stories. Use ***Headline*** on its own line, optional **byline**, then plain body.'
-        : 'Paste needs markdown ## sections (and ***Headlines***). Could not structure this paste.',
+        ? 'Found sections but no **Headline** stories. Use **Headline** on its own line, optional *Named source:…*, then plain body.'
+        : 'Paste needs ***Section*** / ## sections and **Headline** stories. Could not structure this paste.',
     };
   }
 

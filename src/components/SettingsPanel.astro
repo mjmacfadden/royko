@@ -26,11 +26,11 @@ const feedsBySection = {
     <section class="settings-section">
       <h3>Grok Automation brief</h3>
       <p class="settings-help">
-        Paste format: <code>##</code> sections, <code>***Headline***</code>, optional <code>**byline**</code>, then plain body
-        (no italic wrappers). Legacy <code>**Headline**</code> still works. Interleaves with RSS as Brief cards — never a plain dump.
-        See README “Paste format” for the full dialect you can put in a Grok system prompt.
+        Canonical: <code>***Section***</code> headers, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body.
+        Weather/Markets = prose; What to watch = <code>-</code> bullets. Alternates: <code>##</code> sections and older <code>***hed***</code>.
+        Interleaves with RSS as Brief cards — never a plain dump. See README “Paste format”.
       </p>
-      <textarea id="grok-brief-input" class="grok-brief-textarea" rows="10" placeholder="**The Daily Mike**&#10;Wednesday…&#10;America/Chicago&#10;&#10;## National &amp; World&#10;&#10;***Headline***&#10;**Named source: AP**&#10;Body…"></textarea>
+      <textarea id="grok-brief-input" class="grok-brief-textarea" rows="10" placeholder="***National &amp; World***&#10;&#10;**Headline**&#10;*Named source: Reuters, September 9*&#10;Body…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-brief-save">Save brief</button>
         <button type="button" id="grok-brief-clear">Clear</button>
