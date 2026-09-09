@@ -5,7 +5,7 @@ Personal morning newspaper for Northbrook, IL. **Not a news dashboard** — the 
 **Masthead:** THE DAILY MIKE (Manufacturing Consent + Playfair for headlines)  
 **Tagline:** Independent · Personal · Daily  
 **Location context:** Northbrook / ZIP 60062 (weather & dateline — not the paper’s name)  
-**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen (`data-theme="pure"` + transparent fills; `mix-blend-mode: multiply` knocks residual iframe white against cream); compact high/low (+ Grok weather prose) for print  
+**Weather:** [weatherwidget.io](https://weatherwidget.io) on screen (black/grayscale, transparent); **print** uses a B&W Open-Meteo multi-day strip (hi/lo + condition text) — iframes are never relied on for ink. Grok weather prose still prints when present.  
 **Sample edition:** Wednesday, September 9, 2026 · Vol. I, No. 214
 
 ## Quick start
@@ -40,15 +40,15 @@ Example: `http://localhost:4321/answers/2026-09-09`
 | Area | Status |
 |------|--------|
 | Astro app + 3-page newspaper shell | ✅ |
-| Print-first continuous 3-column flow (dense; empty space only on last page) | ✅ |
+| Print-first continuous 3-column flow (dense; features follow news; empty space only after last content) | ✅ |
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
 | Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
-| weatherwidget.io Northbrook embed (print fallback) | ✅ |
+| weatherwidget.io screen + Open-Meteo B&W print strip | ✅ |
 | Live RSS ingestion (optional; **off by default**) | ✅ code kept |
 | Settings panel (feeds, ZIP, comics, calendars, Grok brief) | ✅ localStorage |
 | Comics RSS (xkcd + SMBC + The Oatmeal) | ✅ best-effort hotlink |
-| Public ICS calendars → agenda (multi-calendar merge) | ✅ `/api/calendar` |
+| Public ICS / Google embed → agenda (multi-calendar merge) | ✅ `/api/calendar` |
 | Grok Automation paste = news backbone (RSS optional) | ✅ |
 | Page 3 games band + horizontal comics | ✅ |
 | Google Calendar OAuth | ❌ Not needed — use public ICS |
@@ -59,7 +59,7 @@ Example: `http://localhost:4321/answers/2026-09-09`
 Open **Settings** in the top chrome (or **Paste brief** for a quick Grok paste):
 
 1. **Grok Automation brief** — **required news backbone**; paste markdown to fill lead / news / local / sports / markets.
-2. **Public calendar ICS URLs** — add/remove; today’s events (America/Chicago) merge into the agenda.
+2. **Public calendar ICS / Google embed URLs** — paste embed (`/calendar/embed?src=…`), public iCal, or raw `.ics`; embed→ICS is automatic. Calendar must be public. Today’s events (America/Chicago) merge into the agenda.
 3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (features band after news flow).
 4. **ZIP code** — default `60062` (Northbrook). The screen weather widget is currently the fixed Northbrook [weatherwidget.io / forecast7](https://forecast7.com/en/42d13n87d83/northbrook/) embed; settings ZIP may drive a different forecast7 URL later.
 5. **Built-in / custom RSS** — **disabled by default**. Opt in via “Enable RSS news” if you want wires mixed with the brief.

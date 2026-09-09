@@ -46,15 +46,19 @@ const feedsBySection = {
     </section>
 
     <section class="settings-section">
-      <h3>Public calendars (ICS)</h3>
+      <h3>Public calendars (ICS / embed)</h3>
       <p class="settings-help">
-        Paste Google Calendar <strong>public ICS / secret iCal address</strong> or any <code>.ics</code> URL.
-        No login. Events for <strong>today</strong> (America/Chicago) merge into the agenda.
+        Paste a Google Calendar <strong>embed</strong> URL
+        (<code>/calendar/embed?src=…</code>), a <strong>public iCal</strong> address,
+        or any <code>.ics</code> URL. Embed links are converted to
+        <code>…/ical/&#123;src&#125;/public/basic.ics</code> automatically. Calendar must be
+        <strong>public</strong> (private calendars return 403). No login.
+        Events for <strong>today</strong> (America/Chicago) merge into the agenda.
       </p>
       <div id="calendars-list" class="custom-feeds-list"></div>
       <div class="custom-feed-add calendar-add">
         <input type="text" id="calendar-label" placeholder="Label (e.g. Family)" />
-        <input type="url" id="calendar-url" placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" />
+        <input type="url" id="calendar-url" placeholder="embed?src=… or …/ical/…/basic.ics" />
         <button type="button" id="calendar-add-btn">Add calendar</button>
       </div>
     </section>

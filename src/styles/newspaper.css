@@ -262,6 +262,8 @@ a:hover {
   overflow: visible;
   background: transparent !important;
   isolation: isolate;
+  /* Force black / grayscale appearance on screen too */
+  filter: grayscale(1) contrast(1.05);
 }
 
 .weather-widget-live .weatherwidget-io {
@@ -281,6 +283,7 @@ a:hover {
   background: transparent !important;
   /* Cross-origin widget often paints opaque white; multiply → cream shows through */
   mix-blend-mode: multiply;
+  filter: grayscale(1);
 }
 
 .weather-widget-status {
@@ -290,11 +293,60 @@ a:hover {
   color: #8a1f1f;
 }
 
+/* Print weather block — hidden on screen; always shown in @media print */
+.weather-print,
 .weather-fallback {
-  display: none; /* screen uses interactive widget */
+  display: none;
   font-family: var(--sans-small);
   font-size: 0.72rem;
   line-height: 1.3;
+  color: #000;
+}
+
+.weather-print-strip {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0;
+  width: 100%;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid #000;
+}
+
+.weather-print-day {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0.2rem 0.28rem;
+  border-right: 1px solid #000;
+  text-align: center;
+}
+
+.weather-print-day:last-child {
+  border-right: 0;
+}
+
+.weather-print-day .wpd-day {
+  display: block;
+  font-family: var(--sans-small);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 0.08rem;
+}
+
+.weather-print-day .wpd-cond {
+  display: block;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  margin-bottom: 0.1rem;
+}
+
+.weather-print-day .wpd-temps {
+  display: block;
+  font-family: var(--serif-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
 .weather-fallback .temps {
@@ -309,9 +361,18 @@ a:hover {
 }
 
 .weather-print-grok {
-  margin: 0.2rem 0 0;
+  margin: 0.25rem 0 0;
   font-size: 0.68rem;
   line-height: 1.25;
+  color: #000;
+}
+
+.weather-print-source {
+  margin: 0.15rem 0 0;
+  font-size: 0.55rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #000;
 }
 
 .agenda-list {
@@ -1457,13 +1518,13 @@ a:hover {
     height: auto !important;
   }
 
-  /* Features start on a fresh sheet; news can span multiple pages naturally */
+  /* Features follow news tightly — no forced blank half-page before games */
   .edition-features {
-    break-before: page;
-    page-break-before: always;
-    margin-top: 0;
-    padding-top: 0;
-    border-top: 0;
+    break-before: auto;
+    page-break-before: auto;
+    margin-top: 0.35rem;
+    padding-top: 0.3rem;
+    border-top: 3px double #000;
   }
 
   .newspaper-page {
@@ -1521,14 +1582,66 @@ a:hover {
     display: none !important;
   }
 
+  /* Always print B&W forecast strip — never leave a blank weather hole */
+  .weather-print,
   .weather-fallback {
     display: block !important;
+    color: #000 !important;
+    background: transparent !important;
+  }
+
+  .weather-print-strip {
+    border-color: #000 !important;
+  }
+
+  .weather-print-day {
+    border-color: #000 !important;
+    color: #000 !important;
+  }
+
+  .weather-print-day .wpd-day,
+  .weather-print-day .wpd-cond,
+  .weather-print-day .wpd-temps,
+  .weather-print-grok,
+  .weather-print-source,
+  .weather-print .section-label {
+    color: #000 !important;
   }
 
   .weather-strip {
-    margin-bottom: 0.3rem;
-    padding: 0.2rem 0.3rem;
+    margin-bottom: 0.25rem;
+    padding: 0.15rem 0.2rem;
     background: transparent !important;
+    border-color: #000 !important;
+    color: #000 !important;
+  }
+
+  /* Allow column story packs to split across pages — avoid hollow mid-page gaps */
+  .flow-block {
+    break-inside: auto;
+    -webkit-column-break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .story-item,
+  .brief-item {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .game-cell,
+  .comics-band .comic-box {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .edition-news,
+  .edition-band,
+  .front-pack,
+  .stories-flow,
+  .page3-features {
+    min-height: 0 !important;
+    height: auto !important;
   }
 
   .page3-features {

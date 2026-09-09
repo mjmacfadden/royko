@@ -7,17 +7,18 @@ const { weather } = Astro.props;
 /** Default Northbrook forecast7 embed; client updates from Settings ZIP. */
 const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
 /**
- * weatherwidget.io: flat "pure" theme + zero-alpha fills.
+ * weatherwidget.io: flat "pure" theme + zero-alpha fills + black ink.
  * Cross-origin iframe may still paint opaque white internally; CSS mix-blend-mode
- * on the frame knocks white out against cream paper as a practical workaround.
+ * + grayscale filter knock color/white out against cream paper.
+ * Print never relies on this iframe — see .weather-print below.
  */
 const theme = 'pure';
 const basecolor = 'rgba(0,0,0,0)';
-const textcolor = '#1a1a1a';
+const textcolor = '#000000';
 const accent = 'rgba(0,0,0,0)';
 ---
 <section class="weather-strip" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
-  <!-- Screen: weatherwidget.io interactive embed (below masthead) -->
+  <!-- Screen: weatherwidget.io interactive embed (below masthead) — grayscale / black -->
   <div class="weather-widget-live screen-only">
     <a
       class="weatherwidget-io"
@@ -28,7 +29,7 @@ const accent = 'rgba(0,0,0,0)';
       data-basecolor={basecolor}
       data-textcolor={textcolor}
       data-highcolor={textcolor}
-      data-lowcolor="#444444"
+      data-lowcolor="#000000"
       data-accent={accent}
       data-days="5"
       >NORTHBROOK WEATHER</a
@@ -36,14 +37,23 @@ const accent = 'rgba(0,0,0,0)';
     <p class="weather-widget-status" data-weather-status hidden></p>
   </div>
 
-  <!-- Print / fallback: compact high-low + optional Grok prose -->
-  <div class="weather-fallback" data-weather-print>
+  <!--
+    Print / no-JS: B&W multi-day strip (filled by Open-Meteo client-side).
+    Always present so @media print never leaves a blank weather hole.
+  -->
+  <div class="weather-print" data-weather-print>
     <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
-    <div class="temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</div>
-    <div class="weather-fallback-summary" data-weather-summary>
-      {weather.fallback.summary} · ZIP <span data-weather-zip>{weather.zip}</span>
+    <div class="weather-print-strip" data-weather-print-strip>
+      <div class="weather-print-day">
+        <span class="wpd-day">Today</span>
+        <span class="wpd-cond">{weather.fallback.summary}</span>
+        <span class="wpd-temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</span>
+      </div>
     </div>
     <p class="weather-print-grok" data-print-weather-body hidden></p>
+    <p class="weather-print-source" data-weather-print-source>
+      ZIP <span data-weather-zip>{weather.zip}</span> · forecast loads with edition
+    </p>
   </div>
 </section>
 

@@ -11,6 +11,72 @@ export interface CalendarSource {
   url: string;
 }
 
+/**
+ * Accept Google embed URLs, public iCal URLs, or raw ICS URLs.
+ * Embed example:
+ *   https://calendar.google.com/calendar/embed?src=user%40domain.com&ctz=America%2FChicago
+ * → https://calendar.google.com/calendar/ical/user%40domain.com/public/basic.ics
+ */
+export function normalizeCalendarUrl(raw: string): {
+  url: string;
+  ctz?: string;
+  convertedFromEmbed: boolean;
+} {
+  const trimmed = (raw || '').trim();
+  if (!trimmed) return { url: trimmed, convertedFromEmbed: false };
+
+  let u: URL;
+  try {
+    u = new URL(trimmed);
+  } catch {
+    return { url: trimmed, convertedFromEmbed: false };
+  }
+
+  const host = u.hostname.toLowerCase();
+  const isGoogle = host === 'calendar.google.com' || host.endsWith('.google.com');
+  const ctz = u.searchParams.get('ctz') || undefined;
+
+  // Already a Google iCal / public|private basic.ics — keep as-is
+  if (isGoogle && /\/calendar\/ical\//i.test(u.pathname)) {
+    return { url: trimmed, ctz, convertedFromEmbed: false };
+  }
+
+  // Google embed → public ICS
+  if (isGoogle && /\/calendar\/embed/i.test(u.pathname)) {
+    const src = u.searchParams.get('src');
+    if (src) {
+      const decoded = decodeURIComponent(src);
+      const encoded = encodeURIComponent(decoded);
+      return {
+        url: `https://calendar.google.com/calendar/ical/${encoded}/public/basic.ics`,
+        ctz,
+        convertedFromEmbed: true,
+      };
+    }
+  }
+
+  // Some Google “Share” links use /calendar/u/0/r?cid=... — leave alone unless src present
+  if (isGoogle) {
+    const src = u.searchParams.get('src');
+    if (src && !/\.ics(\?|$)/i.test(u.pathname)) {
+      const decoded = decodeURIComponent(src);
+      const encoded = encodeURIComponent(decoded);
+      return {
+        url: `https://calendar.google.com/calendar/ical/${encoded}/public/basic.ics`,
+        ctz,
+        convertedFromEmbed: true,
+      };
+    }
+  }
+
+  return { url: trimmed, ctz, convertedFromEmbed: false };
+}
+
+export function normalizeCalendarSource(cal: CalendarSource): CalendarSource {
+  const { url } = normalizeCalendarUrl(cal.url);
+  return { ...cal, url };
+}
+
 export interface CalendarEvent {
   uid: string;
   title: string;
@@ -158,20 +224,28 @@ export function toAgendaItems(
 }
 
 async function fetchOne(cal: CalendarSource): Promise<{ events: CalendarEvent[]; error?: string }> {
+  const normalized = normalizeCalendarSource(cal);
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(cal.url, {
+    const res = await fetch(normalized.url, {
       signal: controller.signal,
       headers: {
         'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; public ICS)',
         Accept: 'text/calendar, text/plain, application/ics, */*',
       },
     });
+    if (res.status === 403 || res.status === 401) {
+      throw new Error(
+        'Calendar is not public (HTTP ' +
+          res.status +
+          '). In Google Calendar → Settings → Access permissions for this calendar, enable “Make available to public”, then paste the public iCal address or the embed URL.',
+      );
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
-    if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error('not an ICS calendar');
-    return { events: parseIcsEvents(text, cal) };
+    if (!/BEGIN:VCALENDAR/i.test(text)) throw new Error('not an ICS calendar (check URL; embed links are auto-converted)');
+    return { events: parseIcsEvents(text, normalized) };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { events: [], error: msg };
@@ -185,7 +259,7 @@ export function placeholderAgenda(): AgendaItem[] {
     {
       time: '—',
       title: 'Add a public calendar ICS URL in Settings',
-      note: 'Google Calendar → Settings → Integrate calendar',
+      note: 'Paste public ICS, iCal, or Google embed URL in Settings',
     },
   ];
 }
@@ -202,7 +276,9 @@ export async function fetchMergedAgenda(opts: {
   usedFallback: boolean;
 }> {
   const editionDate = opts.editionDate || chicagoDateKey();
-  const calendars = opts.calendars.filter((c) => c.url?.startsWith('http'));
+  const calendars = opts.calendars
+    .filter((c) => c.url?.startsWith('http'))
+    .map(normalizeCalendarSource);
   if (!calendars.length) {
     return {
       items: opts.fallback?.length ? opts.fallback : placeholderAgenda(),

@@ -35,7 +35,7 @@ export const GET: APIRoute = async () => {
   return new Response(
     JSON.stringify({
       ok: true,
-      help: 'POST { calendars: [{id,label,url}], editionDate? } — public ICS only, no OAuth',
+      help: 'POST { calendars: [{id,label,url}], editionDate? } — public ICS, Google embed, or iCal URL (embed→ICS normalized); no OAuth',
     }),
     { headers: { 'Content-Type': 'application/json' } },
   );

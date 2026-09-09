@@ -219,7 +219,15 @@ const hasWireStories =
         type PaperSettings,
         type CustomFeed,
       } from '../lib/settings';
-      import type { CalendarSource } from '../lib/calendar';
+      import {
+        normalizeCalendarUrl,
+        type CalendarSource,
+      } from '../lib/calendar';
+      import {
+        geoForZip,
+        fetchOpenMeteoForecast,
+        renderPrintWeatherStripHtml,
+      } from '../lib/weather';
       import {
         parseGrokBrief,
         grokItemsAsStories,
@@ -321,13 +329,13 @@ const hasWireStories =
         a.href = href;
         a.setAttribute('data-label_1', label1);
         a.setAttribute('data-label_2', 'WEATHER');
-        // Flat "pure" theme + fully transparent fills so cream paper shows through.
+        // Flat "pure" theme + black ink + transparent fills (grayscale CSS on container).
         // Do not set data-mode="Current" — keep multi-day forecast default.
         a.setAttribute('data-theme', 'pure');
         a.setAttribute('data-basecolor', 'rgba(0,0,0,0)');
-        a.setAttribute('data-textcolor', '#1a1a1a');
-        a.setAttribute('data-highcolor', '#1a1a1a');
-        a.setAttribute('data-lowcolor', '#444444');
+        a.setAttribute('data-textcolor', '#000000');
+        a.setAttribute('data-highcolor', '#000000');
+        a.setAttribute('data-lowcolor', '#000000');
         a.setAttribute('data-accent', 'rgba(0,0,0,0)');
         a.setAttribute('data-shadow', '');
         a.setAttribute('data-days', '5');
@@ -347,6 +355,38 @@ const hasWireStories =
         else document.body.appendChild(script);
       }
 
+      /** Fill print B&W multi-day strip via Open-Meteo (iframes don't print reliably). */
+      async function fillPrintWeather(zip: string) {
+        const strip = document.querySelector('[data-weather-print-strip]');
+        const source = document.querySelector('[data-weather-print-source]');
+        if (!strip) return;
+
+        const geo = await geoForZip(zip);
+        const days = await fetchOpenMeteoForecast(geo.lat, geo.lon, 5);
+        if (days?.length) {
+          strip.innerHTML = renderPrintWeatherStripHtml(days, escapeHtml);
+          if (source) {
+            source.innerHTML = `ZIP <span data-weather-zip>${escapeHtml(zip)}</span> · Open-Meteo · black ink`;
+          }
+          return;
+        }
+
+        // Keep SSR static day + optional Grok prose already in [data-print-weather-body]
+        const fb = bootstrap.weatherFallback as
+          | { highF?: number; lowF?: number; summary?: string }
+          | undefined;
+        if (fb && (fb.highF != null || fb.summary)) {
+          strip.innerHTML = `<div class="weather-print-day">
+  <span class="wpd-day">Today</span>
+  <span class="wpd-cond">${escapeHtml(fb.summary || 'Forecast')}</span>
+  <span class="wpd-temps">${Number(fb.highF) || '—'}° / ${Number(fb.lowF) || '—'}°</span>
+</div>`;
+        }
+        if (source) {
+          source.innerHTML = `ZIP <span data-weather-zip>${escapeHtml(zip)}</span> · fallback (Open-Meteo unavailable)`;
+        }
+      }
+
       async function applyWeather(zip: string) {
         const zipEl = document.querySelector('[data-weather-zip]');
         const label = document.querySelector('[data-weather-label]');
@@ -359,6 +399,7 @@ const hasWireStories =
             : result.city;
         }
         reinjectWeatherWidget(result.url, result.label);
+        await fillPrintWeather(zip);
         if (result.fromFallback) {
           setWeatherStatus(`Could not look up ZIP ${zip}; showing Northbrook.`);
         } else {
@@ -680,7 +721,23 @@ const hasWireStories =
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          renderAgenda(data.items || bootstrap.agenda || []);
+          let items = data.items || bootstrap.agenda || [];
+          if (Array.isArray(data.failed) && data.failed.length) {
+            const notes = data.failed.map(
+              (f: { id: string; error: string }) => ({
+                time: '—',
+                title: `Calendar error (${f.id})`,
+                note: f.error,
+              }),
+            );
+            // If only placeholders / empty day, show the errors clearly
+            if (data.usedFallback || !items.length) {
+              items = notes;
+            } else {
+              items = [...items, ...notes];
+            }
+          }
+          renderAgenda(items);
         } catch {
           renderAgenda(bootstrap.agenda || []);
         }
@@ -837,7 +894,10 @@ const hasWireStories =
           enabledFeedIds,
           customFeeds: rssEnabled ? [...customFeeds] : [],
           enabledComicIds,
-          calendars: [...calendars],
+          calendars: calendars.map((c) => ({
+            ...c,
+            url: normalizeCalendarUrl(c.url).url,
+          })),
         };
       }
 
@@ -861,11 +921,16 @@ const hasWireStories =
 
       document.getElementById('calendar-add-btn')?.addEventListener('click', () => {
         const label = (document.getElementById('calendar-label') as HTMLInputElement)?.value.trim() || 'Calendar';
-        const url = (document.getElementById('calendar-url') as HTMLInputElement)?.value.trim();
-        if (!url || !url.startsWith('http')) return;
-        calendars.push({ id: `cal-${Date.now()}`, label, url });
+        const rawUrl = (document.getElementById('calendar-url') as HTMLInputElement)?.value.trim();
+        if (!rawUrl || !rawUrl.startsWith('http')) return;
+        const norm = normalizeCalendarUrl(rawUrl);
+        calendars.push({ id: `cal-${Date.now()}`, label, url: norm.url });
         (document.getElementById('calendar-label') as HTMLInputElement).value = '';
         (document.getElementById('calendar-url') as HTMLInputElement).value = '';
+        const status = document.getElementById('settings-status');
+        if (status && norm.convertedFromEmbed) {
+          status.textContent = 'Converted Google embed URL → public ICS. Calendar must be public.';
+        }
         renderCalendarsList();
       });
 
@@ -945,6 +1010,9 @@ const hasWireStories =
       }
 
       void applyWeather(settings.zip);
+      window.addEventListener('beforeprint', () => {
+        void fillPrintWeather(settings.zip || '60062');
+      });
       applyComicVisibility(settings);
       lastRss = {
         news: bootstrap.news || [],
