@@ -73,7 +73,7 @@ const jumbleWords = [
   ['SCOOP', 'Exclusive tip'],
   ['FEATURE', 'Longer read'],
   ['BRIEF', 'Short item'],
-  ['WIRECOPY', 'From the AP'],
+  ['WIRECOPY', 'News from the wire'],
   ['LAYOUT', 'Page design'],
   ['FOLIO', 'Page number line'],
   ['RULE', 'Thin black line'],
@@ -223,282 +223,302 @@ function buildJumble() {
   return out;
 }
 
-// Mini 5x5 crosswords — rotate a set of templates with different fills
-const miniTemplates = [
-  {
-    title: 'Morning Cup',
-    size: 5,
-    solution: [
-      'C','O','F','F','E',
-      'A','.','L','.','A',
-      'P','A','P','E','R',
-      'S','.','E','.','L',
-      '.','I','N','K','.',
-    ],
-    clues: [
-      { num: 1, clue: 'Breakfast brew', answer: 'COFFE', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Daily read', answer: 'PAPER', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'Printer fluid', answer: 'INK', row: 4, col: 1, dir: 'across' },
-      { num: 1, clue: 'Bottle tops', answer: 'CAPS', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Flip side', answer: 'FLIP', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Soon, poetically', answer: 'EARL', row: 0, col: 4, dir: 'down' },
-    ],
-  },
-  {
-    title: 'Lake Day',
-    size: 5,
-    solution: [
-      'L','A','K','E','.',
-      'I','.','I','.','B',
-      'O','A','R','S','.',
-      'N','.','K','.','U',
-      '.','W','I','N','D',
-    ],
-    clues: [
-      { num: 1, clue: 'Michigan, locally', answer: 'LAKE', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Rowboat pair', answer: 'OARS', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'Chicago nickname bit', answer: 'WIND', row: 4, col: 1, dir: 'across' },
-      { num: 1, clue: 'Big cat', answer: 'LION', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Scottish wear', answer: 'KIRK', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Flower part', answer: 'BUD', row: 0, col: 4, dir: 'down' },
-    ],
-  },
-  {
-    title: 'Sports Page',
-    size: 5,
-    solution: [
-      'B','E','A','R','S',
-      'A','.','C','.','C',
-      'L','O','O','P','.',
-      'L','.','R','.','R',
-      '.','C','U','B','S',
-    ],
-    clues: [
-      { num: 1, clue: 'Halas\'s team', answer: 'BEARS', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Downtown El circle', answer: 'LOOP', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'North Side nine', answer: 'CUBS', row: 4, col: 1, dir: 'across' },
-      { num: 1, clue: 'Dance', answer: 'BALL', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Sharp', answer: 'ACOR', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Scripture books abbr.', answer: 'SCRS', row: 0, col: 4, dir: 'down' },
-    ],
-  },
-  {
-    title: 'Village Life',
-    size: 5,
-    solution: [
-      'T','R','E','E','.',
-      'R','.','L','.','P',
-      'A','V','E','N','U',
-      'I','.','C','.','B',
-      'N','E','W','S','.',
-    ],
-    clues: [
-      { num: 1, clue: 'Parkway shade', answer: 'TREE', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Street, briefly incomplete', answer: 'AVENU', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'What you are reading', answer: 'NEWS', row: 4, col: 0, dir: 'across' },
-      { num: 1, clue: 'Amtrak vehicle', answer: 'TRAIN', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Choose', answer: 'ELECT', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Publish', answer: 'PUB', row: 0, col: 4, dir: 'down' },
-    ],
-  },
-];
-
-// Fix a few imperfect solutions to be consistent enough for placeholders
-// Use cleaner 5x5 templates
-const cleanMinis = [
-  {
-    title: 'Ink & Paper',
-    size: 5,
-    // C A F E .
-    // . . . . .
-    // N E W S .
-    // . . . . .
-    // I N K . .
-    solution: [
-      'C','A','F','E','.',
-      'O','.','A','.','.',
-      'F','I','L','E','.',
-      'F','.','L','.','.',
-      'E','D','I','T','.',
-    ],
-    clues: [
-      { num: 1, clue: 'Morning stop', answer: 'CAFE', row: 0, col: 0, dir: 'across' },
-      { num: 4, clue: 'Story folder', answer: 'FILE', row: 2, col: 0, dir: 'across' },
-      { num: 6, clue: 'Blue-pencil', answer: 'EDIT', row: 4, col: 0, dir: 'across' },
-      { num: 1, clue: 'Java', answer: 'COFFE', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Not succeed', answer: 'FAIL', row: 0, col: 2, dir: 'down' },
-      { num: 3, clue: 'East, briefly', answer: 'E', row: 0, col: 3, dir: 'down' },
-    ],
-  },
-];
-
-// Better: generate simple pattern grids programmatically
-function makeMini(i) {
-  const themes = [
-    { title: 'Coffee Break', across: [['TEA', 'Hot drink'], ['READ', 'Enjoy the paper'], ['INK', 'Black fluid']], down: [['TRI', 'Prefix three'], ['EAR', 'Listen'], ['AD', 'Classified']] },
-    { title: 'Ballgame', across: [['BAT', 'Louisville ___'], ['RUN', 'Score on basepaths'], ['WIN', 'Not a loss']], down: [['BRW', 'Brew, slangy'], ['AUI', 'French "to the"'], ['TNN', 'Cable letters']] },
-    { title: 'Lake Shore', across: [['BAY', 'Sheltered water'], ['OAR', 'Rowing need'], ['SKY', 'Above the water']], down: [['BOS', 'Red Sox city abbr.'], ['AAK', '—'], ['YRY', '—']] },
-    { title: 'Hometown', across: [['MAP', 'Village guide'], ['ELM', 'Street tree'], ['BUS', 'Pace route']], down: [['MEB', '—'], ['ALU', '—'], ['PMS', 'Afternoon times']] },
-    { title: 'Press Box', across: [['PEN', 'Reporter tool'], ['PAD', 'Notebook'], ['SET', 'Type ___']], down: [['PPS', '—'], ['EAE', '—'], ['NDT', '—']] },
-  ];
-  const t = themes[i % themes.length];
-  // Build a simple 5x5 with three 3-letter across in rows 0,2,4 cols 0-2; rest blocked-ish
-  const size = 5;
-  const solution = Array(size * size).fill('.');
-  const place = (word, row, col, dir) => {
-    for (let k = 0; k < word.length; k++) {
-      const r = dir === 'across' ? row : row + k;
-      const c = dir === 'across' ? col + k : col;
-      if (r < size && c < size) solution[r * size + c] = word[k];
-    }
-  };
-  const clues = [];
-  // Place three across words on rows 0,2,4
-  t.across.forEach((entry, idx) => {
-    const [word, clue] = entry;
-    const row = idx * 2;
-    place(word, row, 0, 'across');
-    clues.push({ num: idx + 1, clue, answer: word, row, col: 0, dir: 'across' });
-  });
-  // Place down from col 0 using first letters already there — rebuild downs from grid
-  // Simpler: place downs in col 0,2 overlapping
-  const downWords = [];
-  for (let c = 0; c < 3; c++) {
-    let w = '';
-    for (let r = 0; r < 5; r += 2) {
-      const ch = solution[r * size + c];
-      if (ch && ch !== '.') w += ch;
-    }
-    // Fill middle cells for continuous downs of length 3 on even rows only — use sparse
-    downWords.push(w);
+// Hand-validated 5×5 American crossword minis (true word squares:
+// rows == columns, every slot a real English word).
+function wordSquare(title, words, acrossClues, downClues) {
+  if (words.length !== 5 || words.some((w) => w.length !== 5)) {
+    throw new Error(`${title}: need five 5-letter words`);
   }
-  // Add across-style downs as separate 3-letter words in col 0 row0-2 etc — keep clues from theme downs loosely
-  t.down.forEach((entry, idx) => {
-    const [word, clue] = entry;
-    if (clue === '—') return; // skip filler
-    place(word, 0, idx, 'down');
-    clues.push({ num: 10 + idx, clue, answer: word, row: 0, col: idx, dir: 'down' });
+  // Enforce true word square (transpose equals rows)
+  for (let r = 0; r < 5; r++) {
+    for (let c = 0; c < 5; c++) {
+      if (words[r][c] !== words[c][r]) {
+        throw new Error(`${title}: not a word square at (${r},${c})`);
+      }
+    }
+  }
+  const solution = words.join('').split('');
+  const clues = [];
+  words.forEach((answer, i) => {
+    clues.push({
+      num: i === 0 ? 1 : i + 5,
+      clue: acrossClues[i],
+      answer,
+      row: i,
+      col: 0,
+      dir: 'across',
+    });
   });
-
-  return {
-    dayOfYear: i + 1,
-    dateKey: mmddFromDayOfYear(i + 1),
-    title: `${t.title} #${i + 1}`,
-    size,
-    solution,
-    clues: clues.filter((c) => c.clue !== '—'),
-  };
+  words.forEach((answer, i) => {
+    clues.push({
+      num: i + 1,
+      clue: downClues[i],
+      answer,
+      row: 0,
+      col: i,
+      dir: 'down',
+    });
+  });
+  return { title, size: 5, solution, clues };
 }
 
-// Cleaner crossword generator: fixed good 5x5 templates cycled
 const goodCrosswords = [
-  {
-    title: 'Morning Edition',
-    size: 5,
-    solution: [
-      'B','R','E','A','D',
-      'E','.','A','.','A',
-      'A','R','T','.','Y',
-      'R','.','.','.','.',
-      'D','A','T','E','.',
+  wordSquare(
+    'Warm Type',
+    ['HEART', 'EMBER', 'ABUSE', 'RESIN', 'TREND'],
+    [
+      'Valentine symbol',
+      'Fireplace leftover',
+      'Bad-mouth',
+      'Pine sap product',
+      'Fashion direction',
     ],
-    clues: [
-      { num: 1, clue: 'Toast base', answer: 'BREAD', row: 0, col: 0, dir: 'across' },
-      { num: 4, clue: 'Museum subject', answer: 'ART', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'Masthead line', answer: 'DATE', row: 4, col: 0, dir: 'across' },
-      { num: 1, clue: 'Growl', answer: 'BEARD', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Consume', answer: 'EAT', row: 0, col: 2, dir: 'down' },
-      { num: 3, clue: 'Sunrise time', answer: 'DAY', row: 0, col: 4, dir: 'down' },
+    [
+      'Core of the matter',
+      'Glowing coal',
+      'Misuse',
+      'Amber source',
+      'Chart-topper path',
     ],
-  },
-  {
-    title: 'Northbrook',
-    size: 5,
-    solution: [
-      'P','A','R','K','.',
-      'A','.','O','.','M',
-      'G','R','E','E','N',
-      'E','.','D','.','A',
-      '.','.','.','L','P',
+  ),
+  wordSquare(
+    'Front Page',
+    ['PAPER', 'ARENA', 'PEARL', 'ENROL', 'RALLY'],
+    [
+      'Newsprint sheet',
+      'Sports venue',
+      'Oyster gem',
+      'Sign up, British-style',
+      'Campaign gathering',
     ],
-    clues: [
-      { num: 1, clue: 'Village ___ District', answer: 'PARK', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Golf course color', answer: 'GREEN', row: 2, col: 0, dir: 'across' },
-      { num: 1, clue: 'Book leaf', answer: 'PAGE', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Went by bike', answer: 'RODE', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Atlas sheet', answer: 'MAP', row: 0, col: 4, dir: 'down' },
+    [
+      'Broadsheet',
+      'United Center, e.g.',
+      'June birthstone',
+      'Register for a class',
+      'Pep-talk meeting',
     ],
-  },
-  {
-    title: 'Sports Desk',
-    size: 5,
-    solution: [
-      'G','O','A','L','.',
-      'A','.','C','.','W',
-      'M','E','E','T','.',
-      'E','.','.','.','N',
-      '.','.','W','I','N',
+  ),
+  wordSquare(
+    'Sports Page',
+    ['GAMES', 'ARENA', 'METAL', 'ENACT', 'SALTS'],
+    [
+      'Ballpark contests',
+      'Hockey venue',
+      'Medal material',
+      'Pass into law',
+      'Seasons food',
     ],
-    clues: [
-      { num: 1, clue: 'Soccer score', answer: 'GOAL', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Track event', answer: 'MEET', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'Victory', answer: 'WIN', row: 4, col: 2, dir: 'across' },
-      { num: 1, clue: 'Match', answer: 'GAME', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Card suit', answer: 'ACE', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Not lose', answer: 'WIN', row: 0, col: 4, dir: 'down' },
+    [
+      'Board or video ___',
+      'United Center bowl',
+      'Tin or copper',
+      'Put on the books',
+      'Epsom and table',
     ],
-  },
-  {
-    title: 'Typeset',
-    size: 5,
-    solution: [
-      'T','Y','P','E','.',
-      'I','.','A','.','I',
-      'N','E','W','S','.',
-      'T','.','.','.','L',
-      '.','.','I','N','K',
+  ),
+  wordSquare(
+    'Box Score',
+    ['SCORE', 'CANOE', 'ONION', 'ROOMS', 'EENSY'],
+    [
+      'Final tally',
+      'Quiet watercraft',
+      'Burger topper',
+      'Hotel units',
+      'Teensy, in crosswords',
     ],
-    clues: [
-      { num: 1, clue: 'Font matter', answer: 'TYPE', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Front page stuff', answer: 'NEWS', row: 2, col: 0, dir: 'across' },
-      { num: 5, clue: 'Press fluid', answer: 'INK', row: 4, col: 2, dir: 'across' },
-      { num: 1, clue: 'Shade of color', answer: 'TINT', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Animal foot', answer: 'PAW', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Ill', answer: 'ILK', row: 0, col: 4, dir: 'down' },
+    [
+      'Music notation sheet',
+      'Camp paddle boat',
+      'Layers vegetable',
+      'Makes space for',
+      'Itsy-bitsy cousin',
     ],
-  },
-  {
-    title: 'Lake Michigan',
-    size: 5,
-    solution: [
-      'W','A','V','E','.',
-      'I','.','E','.','S',
-      'N','O','R','T','H',
-      'D','.','Y','.','I',
-      '.','.','.','S','P',
+  ),
+  wordSquare(
+    'Cafe Scene',
+    ['IMAGE', 'MOCHA', 'ACTOR', 'GHOST', 'EARTH'],
+    [
+      'Photo or icon',
+      'Chocolatey espresso drink',
+      'Stage player',
+      'Halloween costume',
+      'Third rock from the sun',
     ],
-    clues: [
-      { num: 1, clue: 'Surf unit', answer: 'WAVE', row: 0, col: 0, dir: 'across' },
-      { num: 3, clue: 'Direction of the brook town', answer: 'NORTH', row: 2, col: 0, dir: 'across' },
-      { num: 1, clue: 'Gusty', answer: 'WIND', row: 0, col: 0, dir: 'down' },
-      { num: 2, clue: 'Quite', answer: 'VERY', row: 0, col: 2, dir: 'down' },
-      { num: 4, clue: 'Vessel', answer: 'SHIP', row: 0, col: 4, dir: 'down' },
+    [
+      'Public perception',
+      'Coffee-shop order',
+      'Movie cast member',
+      'Spectral visitor',
+      'Soil underfoot',
     ],
-  },
+  ),
+  wordSquare(
+    'Night Sky',
+    ['BLAST', 'LUNAR', 'ANGLE', 'SALON', 'TREND'],
+    [
+      'Explosive sound',
+      'Of the moon',
+      'Geometry corner',
+      'Beauty parlor',
+      'Fashion direction',
+    ],
+    [
+      'Detonate',
+      'Moon-related',
+      'Fishhook feature',
+      'Hair studio',
+      'What is trending',
+    ],
+  ),
+  wordSquare(
+    'Arts Desk',
+    ['SOLAR', 'OPERA', 'LEVEL', 'AREAL', 'RALLY'],
+    [
+      'Of the sun',
+      'Lyric stage work',
+      'Even; tier',
+      'Of an area',
+      'Campaign gathering',
+    ],
+    [
+      'Sun-powered',
+      'La Boheme, e.g.',
+      'Spirit level reading',
+      'Geographic, as a map',
+      'Pep-talk meeting',
+    ],
+  ),
+  wordSquare(
+    'Tone Down',
+    ['HEART', 'EMBER', 'ABASE', 'RESIN', 'TREND'],
+    [
+      'Center of feeling',
+      'Glowing remnant',
+      'Humble; lower',
+      'Tree secretion',
+      'Market direction',
+    ],
+    [
+      'Organ of affection',
+      'Coal in the grate',
+      'Bring down a peg',
+      'Varnish base',
+      'Social media wave',
+    ],
+  ),
 ];
 
+/** Read letters from solution starting at (row,col) in dir until block or edge. */
+function readSlot(solution, size, row, col, dir) {
+  let word = '';
+  let r = row;
+  let c = col;
+  while (r >= 0 && c >= 0 && r < size && c < size) {
+    const ch = solution[r * size + c];
+    if (!ch || ch === '.') break;
+    word += ch;
+    if (dir === 'across') c += 1;
+    else r += 1;
+  }
+  return word;
+}
+
+/** Extract every across/down slot of length >= 2 from the grid. */
+function extractSlots(solution, size) {
+  const slots = [];
+  const isLetter = (r, c) => {
+    if (r < 0 || c < 0 || r >= size || c >= size) return false;
+    const ch = solution[r * size + c];
+    return Boolean(ch && ch !== '.');
+  };
+  for (let r = 0; r < size; r++) {
+    for (let c = 0; c < size; c++) {
+      if (!isLetter(r, c)) continue;
+      if (!isLetter(r, c - 1)) {
+        const answer = readSlot(solution, size, r, c, 'across');
+        if (answer.length >= 2) slots.push({ row: r, col: c, dir: 'across', answer });
+      }
+      if (!isLetter(r - 1, c)) {
+        const answer = readSlot(solution, size, r, c, 'down');
+        if (answer.length >= 2) slots.push({ row: r, col: c, dir: 'down', answer });
+      }
+    }
+  }
+  return slots;
+}
+
+/**
+ * Fail loudly if any clue answer ≠ grid spelling, clue starts on a block,
+ * answer is empty, or any grid slot (len>=2) is missing/mismatched in clues.
+ */
+function validateCrossword(entry) {
+  const { title, size, solution, clues } = entry;
+  const label = title || 'crossword';
+  if (!Array.isArray(solution) || solution.length !== size * size) {
+    throw new Error(`${label}: solution must be length ${size * size}`);
+  }
+  if (!Array.isArray(clues) || clues.length === 0) {
+    throw new Error(`${label}: clues missing`);
+  }
+
+  for (const clue of clues) {
+    const { num, answer, row, col, dir } = clue;
+    const where = `${label} ${num}-${dir}`;
+    if (row < 0 || col < 0 || row >= size || col >= size) {
+      throw new Error(`${where}: start out of bounds (${row},${col})`);
+    }
+    const start = solution[row * size + col];
+    if (!start || start === '.') {
+      throw new Error(`${where}: clue starts on a block at (${row},${col})`);
+    }
+    if (!answer || String(answer).length === 0) {
+      throw new Error(`${where}: empty answer`);
+    }
+    const gridWord = readSlot(solution, size, row, col, dir);
+    if (gridWord !== answer) {
+      throw new Error(
+        `${where}: answer "${answer}" ≠ grid "${gridWord}" from (${row},${col}) ${dir}`,
+      );
+    }
+  }
+
+  const slots = extractSlots(solution, size);
+  for (const slot of slots) {
+    const match = clues.find(
+      (c) => c.row === slot.row && c.col === slot.col && c.dir === slot.dir,
+    );
+    if (!match) {
+      throw new Error(
+        `${label}: unclued ${slot.dir} slot "${slot.answer}" at (${slot.row},${slot.col})`,
+      );
+    }
+    if (match.answer !== slot.answer) {
+      throw new Error(
+        `${label}: clue at (${slot.row},${slot.col}) ${slot.dir} has "${match.answer}" but grid spells "${slot.answer}"`,
+      );
+    }
+  }
+}
+
 function buildCrossword() {
+  for (const tmpl of goodCrosswords) {
+    validateCrossword(tmpl);
+  }
+
   const out = [];
   for (let i = 0; i < COUNT; i++) {
     const base = goodCrosswords[i % goodCrosswords.length];
-    out.push({
+    const entry = {
       dayOfYear: i + 1,
       dateKey: mmddFromDayOfYear(i + 1),
       title: `${base.title} — Day ${i + 1}`,
       size: base.size,
       solution: [...base.solution],
       clues: base.clues.map((c) => ({ ...c })),
-    });
+    };
+    validateCrossword(entry);
+    out.push(entry);
   }
   return out;
 }
