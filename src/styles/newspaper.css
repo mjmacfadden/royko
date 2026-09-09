@@ -674,13 +674,37 @@ a:hover {
   padding-left: 0.35rem;
 }
 
+.crossword-box {
+  text-align: center;
+}
+
+.crossword-box .section-label,
+.crossword-box .clue-columns,
+.crossword-box .clue-list {
+  text-align: left;
+}
+
 .crossword-grid {
   display: grid;
   gap: 0;
   width: max-content;
   max-width: 100%;
   border: var(--rule-thin);
-  margin: 0.3rem 0;
+  margin: 0.35rem auto;
+}
+
+.sheet-game-unit .crossword-box,
+.game-crossword .crossword-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sheet-game-unit .crossword-box .section-label,
+.sheet-game-unit .crossword-box .clue-columns,
+.game-crossword .crossword-box .section-label,
+.game-crossword .crossword-box .clue-columns {
+  align-self: stretch;
 }
 
 .crossword-cell {
