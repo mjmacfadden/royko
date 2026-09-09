@@ -224,14 +224,8 @@ function cloneShell(el: HTMLElement): HTMLElement {
   return el.cloneNode(false) as HTMLElement;
 }
 
-function addContinuedMarker(restHost: HTMLElement, fittedHost: HTMLElement | null) {
-  const hadHeading = Boolean(
-    fittedHost?.querySelector('h1, h2, h3, .section-label, .kicker, .sheet-continued'),
-  );
-  const cont = document.createElement('p');
-  cont.className = 'sheet-continued';
-  cont.textContent = hadHeading ? '(continued)' : 'Continued from previous column';
-  restHost.appendChild(cont);
+function addContinuedMarker(_restHost: HTMLElement, _fittedHost: HTMLElement | null) {
+  // No visible continuation labels — stories just flow into the next column/page.
 }
 
 /**
