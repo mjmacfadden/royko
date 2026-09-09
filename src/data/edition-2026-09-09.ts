@@ -220,17 +220,6 @@ export const edition: Edition = {
       caption: 'Quiet car diplomacy: the struggle over a single unclaimed seat near the door.',
     },
   ],
-  drawingLesson: {
-    title: 'How to Draw: Cardinal',
-    subject: 'Northern cardinal (male)',
-    steps: [
-      'Lightly sketch an oval body and a smaller circle for the head, slightly overlapping.',
-      'Add the signature crest: a soft triangle on top of the head pointing back.',
-      'Place a short, stout triangle for the beak; mark a black mask around the eye and beak base.',
-      'Tail: long rounded rectangle extending back; wing folded as a curved almond on the side.',
-      'Ink the outline, then fill body with warm red; leave beak orange-red and legs dark gray.',
-    ],
-  },
   todayInHistory: [
     { year: 1776, text: 'The term “United States” appears in writing by the Continental Congress era — a useful civics footnote for the school table.' },
     { year: 1947, text: 'First computer bug famously logged (moth in a relay) — tech desks still love the anniversary.' },

@@ -107,16 +107,46 @@ a:hover {
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
 }
 
-.newspaper-page {
-  display: none;
+/* Continuous edition — screen mirrors print packing (no hollow page shells). */
+.edition-document {
   padding: var(--page-pad);
-  /* Avoid forcing full letter height on screen (was causing print blank pages via overflow). */
-  min-height: 0;
   background: var(--paper);
+  min-height: 0;
 }
 
-.newspaper-page.is-active {
+.edition-band {
+  min-height: 0;
+}
+
+.edition-features {
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: var(--rule-double);
+}
+
+.running-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--sans-small);
+  font-size: 0.58rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  border-bottom: var(--rule-thin);
+  padding-bottom: 0.2rem;
+  margin-bottom: 0.4rem;
+}
+
+.edition-end-folio {
+  margin-top: 0.5rem;
+}
+
+/* Legacy class kept so old print rules / bookmarks don't break */
+.newspaper-page {
   display: block;
+  padding: 0;
+  min-height: 0;
+  background: transparent;
 }
 
 /* —— Masthead —— */
@@ -184,32 +214,54 @@ a:hover {
   font-variant-caps: all-small-caps;
 }
 
-/* —— Page 1 grid: print-like 3 columns —— */
+/* —— Front pack: rail + lead (dense, no empty third column) —— */
+.front-pack {
+  display: grid;
+  grid-template-columns: 1.1fr 2.2fr;
+  gap: var(--col-gap);
+  align-items: start;
+  margin-bottom: 0.35rem;
+}
+
+.front-rail {
+  min-width: 0;
+  padding-right: 0.3rem;
+  border-right: var(--rule-thin);
+}
+
+.front-lead {
+  min-width: 0;
+  padding-left: 0.3rem;
+}
+
+/* legacy aliases */
 .page1-grid {
   display: grid;
-  grid-template-columns: 1.05fr 2fr 1.05fr;
+  grid-template-columns: 1.1fr 2.2fr;
   gap: var(--col-gap);
   align-items: start;
 }
 
 .page1-main {
   border-left: var(--rule-thin);
-  border-right: var(--rule-thin);
+  border-right: 0;
   padding: 0 0.35rem;
 }
 
-/* Weather strip — full width under masthead (screen widget + print fallback) */
+/* Weather strip — cream/transparent; no white box behind iframe */
 .weather-strip {
   border: var(--rule-thin);
-  padding: 0.25rem 0.35rem;
+  padding: 0.2rem 0.3rem;
   margin: 0 0 0.45rem;
-  background: var(--paper-white);
+  background: transparent;
+  color: var(--ink);
 }
 
 .weather-widget-live {
   min-height: 0;
   overflow: visible;
-  background: transparent;
+  background: transparent !important;
+  isolation: isolate;
 }
 
 .weather-widget-live .weatherwidget-io {
@@ -218,6 +270,8 @@ a:hover {
   max-height: none;
   overflow: visible;
   background: transparent !important;
+  /* Knock residual iframe white fill against cream paper */
+  mix-blend-mode: multiply;
 }
 
 .weather-widget-live iframe,
@@ -225,6 +279,8 @@ a:hover {
   max-height: none !important;
   overflow: visible;
   background: transparent !important;
+  /* Cross-origin widget often paints opaque white; multiply → cream shows through */
+  mix-blend-mode: multiply;
 }
 
 .weather-widget-status {
@@ -395,11 +451,31 @@ a:hover {
   line-height: var(--body-lh);
 }
 
-/* —— Page 2: three story columns —— */
+/* —— Continuous 3-column newspaper story flow —— */
+.stories-flow {
+  column-count: 3;
+  column-gap: var(--col-gap);
+  column-rule: 1px solid var(--rule);
+  margin: 0.4rem 0 0.25rem;
+}
+
+.flow-block {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  margin: 0 0 0.55rem;
+  display: block;
+  width: 100%;
+}
+
+.flow-block:empty {
+  display: none;
+  margin: 0;
+}
+
+/* legacy page2 grid — unused but harmless */
 .page2-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--col-gap);
+  display: contents;
 }
 
 .story-column {
@@ -407,8 +483,8 @@ a:hover {
 }
 
 .story-column + .story-column {
-  border-left: var(--rule-thin);
-  padding-left: 0.35rem;
+  border-left: 0;
+  padding-left: 0;
 }
 
 .story-item {
@@ -480,9 +556,9 @@ a:hover {
 .game-cell {
   flex: 1 1 10.5rem;
   min-width: 9.5rem;
-  border: var(--rule-thin);
-  padding: 0.35rem;
-  background: var(--paper-white);
+  border: 0;
+  padding: 0.25rem 0.2rem;
+  background: transparent;
 }
 
 .game-crossword {
@@ -497,7 +573,6 @@ a:hover {
   flex: 0.95 1 9.5rem;
 }
 
-.game-draw,
 .game-history {
   flex: 0.9 1 9rem;
 }
@@ -599,7 +674,6 @@ a:hover {
 .jumble-box,
 .trivia-box,
 .history-box,
-.draw-box,
 .comic-box {
   margin-bottom: 0.35rem;
 }
@@ -769,16 +843,6 @@ a:hover {
   font-size: 0.55rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-}
-
-.draw-steps {
-  margin: 0.2rem 0 0;
-  padding-left: 1rem;
-  font-size: 0.68rem;
-}
-
-.draw-steps li {
-  margin-bottom: 0.15rem;
 }
 
 .page-folio {
@@ -1093,10 +1157,13 @@ a:hover {
 
 /* —— Responsive screen (secondary to print) —— */
 @media (max-width: 900px) {
-  .page1-grid,
-  .page2-grid,
-  .page3-grid {
-    grid-template-columns: 1fr 1fr;
+  .front-pack,
+  .page1-grid {
+    grid-template-columns: 1fr 1.4fr;
+  }
+
+  .stories-flow {
+    column-count: 2;
   }
 
   .game-cell {
@@ -1105,20 +1172,6 @@ a:hover {
 
   .comics-band .comic-box {
     flex: 1 1 45%;
-  }
-
-  .page1-main {
-    grid-column: 1 / -1;
-    border-left: 0;
-    border-right: 0;
-    padding: 0;
-    order: -1;
-  }
-
-  .page3-grid > * + *,
-  .story-column + .story-column {
-    border-left: 0;
-    padding-left: 0;
   }
 
   .masthead-title {
@@ -1136,15 +1189,30 @@ a:hover {
     box-shadow: none;
   }
 
-  .newspaper-page {
+  .edition-document {
     padding: 0.75rem;
-    min-height: 0;
   }
 
-  .page1-grid,
-  .page2-grid,
-  .page3-grid {
+  .front-pack,
+  .page1-grid {
     grid-template-columns: 1fr;
+  }
+
+  .front-rail {
+    border-right: 0;
+    padding-right: 0;
+    border-bottom: var(--rule-thin);
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.35rem;
+  }
+
+  .front-lead {
+    padding-left: 0;
+  }
+
+  .stories-flow {
+    column-count: 1;
+    column-rule: none;
   }
 
   .game-cell,
@@ -1170,8 +1238,12 @@ a:hover {
 .empty-edition,
 .empty-column {
   border: 1px dashed #999;
-  padding: 0.55rem 0.45rem;
-  background: var(--paper-white);
+  padding: 0.45rem 0.4rem;
+  background: transparent;
+}
+
+.empty-column {
+  display: none; /* never leave hollow column shells */
 }
 
 .empty-edition-msg {
@@ -1228,7 +1300,7 @@ a:hover {
   border: var(--rule-thin);
   padding: 0.28rem 0.35rem;
   margin: 0.3rem 0;
-  background: var(--paper-white);
+  background: transparent;
   font-size: 0.7rem;
 }
 
@@ -1375,21 +1447,33 @@ a:hover {
     background: #fff !important;
   }
 
-  /* Natural page boxes: one break after each edition page, no forced empty height. */
+  .edition-document {
+    padding: 0;
+    background: #fff !important;
+  }
+
+  .edition-band {
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* Features start on a fresh sheet; news can span multiple pages naturally */
+  .edition-features {
+    break-before: page;
+    page-break-before: always;
+    margin-top: 0;
+    padding-top: 0;
+    border-top: 0;
+  }
+
   .newspaper-page {
     display: block !important;
     padding: 0;
     min-height: 0 !important;
     height: auto !important;
-    background: #fff !important;
-    page-break-after: always;
-    break-after: page;
-    page-break-inside: auto;
-  }
-
-  .newspaper-page:last-child {
-    page-break-after: avoid;
-    break-after: avoid;
+    background: transparent !important;
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .masthead-title {
@@ -1398,28 +1482,19 @@ a:hover {
     letter-spacing: 0.01em;
   }
 
-  .page1-grid,
-  .page2-grid {
-    grid-template-columns: 1fr 1fr 1fr !important;
+  .front-pack {
+    grid-template-columns: 1.05fr 2.1fr !important;
     gap: 0.25rem;
   }
 
+  .stories-flow {
+    column-count: 3 !important;
+    column-gap: 0.3rem;
+    column-rule: 1px solid #000;
+  }
+
   .page3-grid {
-    display: none !important; /* superseded by .page3-features */
-  }
-
-  .page1-main {
-    grid-column: auto !important;
-    order: 0 !important;
-    border-left: 1px solid #000;
-    border-right: 1px solid #000;
-    padding: 0 0.35rem;
-  }
-
-  .story-column + .story-column,
-  .page3-grid > * + * {
-    border-left: 1px solid #000;
-    padding-left: 0.35rem;
+    display: none !important;
   }
 
   .lead-body p,
@@ -1453,6 +1528,7 @@ a:hover {
   .weather-strip {
     margin-bottom: 0.3rem;
     padding: 0.2rem 0.3rem;
+    background: transparent !important;
   }
 
   .page3-features {
@@ -1467,7 +1543,9 @@ a:hover {
   .game-cell {
     flex: 1 1 30%;
     min-width: 0;
-    padding: 0.25rem;
+    padding: 0.2rem;
+    border: 0 !important;
+    background: transparent !important;
   }
 
   .comics-band {
@@ -1492,10 +1570,13 @@ a:hover {
     font-size: 0.8rem;
   }
 
-  .empty-edition,
-  .empty-column {
+  .empty-edition {
     border-style: solid;
     padding: 0.35rem;
+  }
+
+  .empty-column {
+    display: none !important;
   }
 
   .image-placeholder,

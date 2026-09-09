@@ -5,7 +5,7 @@ Personal morning newspaper for Northbrook, IL. **Not a news dashboard** — the 
 **Masthead:** THE DAILY MIKE (Manufacturing Consent + Playfair for headlines)  
 **Tagline:** Independent · Personal · Daily  
 **Location context:** Northbrook / ZIP 60062 (weather & dateline — not the paper’s name)  
-**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen (transparent `data-basecolor` so cream paper shows through); compact high/low (+ Grok weather prose) for print  
+**Weather:** [weatherwidget.io](https://weatherwidget.io) Northbrook embed on screen (`data-theme="pure"` + transparent fills; `mix-blend-mode: multiply` knocks residual iframe white against cream); compact high/low (+ Grok weather prose) for print  
 **Sample edition:** Wednesday, September 9, 2026 · Vol. I, No. 214
 
 ## Quick start
@@ -40,7 +40,7 @@ Example: `http://localhost:4321/answers/2026-09-09`
 | Area | Status |
 |------|--------|
 | Astro app + 3-page newspaper shell | ✅ |
-| Print-first 3-column letter layout (dense, no blank waste page) | ✅ |
+| Print-first continuous 3-column flow (dense; empty space only on last page) | ✅ |
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
 | Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
@@ -60,7 +60,7 @@ Open **Settings** in the top chrome (or **Paste brief** for a quick Grok paste):
 
 1. **Grok Automation brief** — **required news backbone**; paste markdown to fill lead / news / local / sports / markets.
 2. **Public calendar ICS URLs** — add/remove; today’s events (America/Chicago) merge into the agenda.
-3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (horizontal band on page 3).
+3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (features band after news flow).
 4. **ZIP code** — default `60062` (Northbrook). The screen weather widget is currently the fixed Northbrook [weatherwidget.io / forecast7](https://forecast7.com/en/42d13n87d83/northbrook/) embed; settings ZIP may drive a different forecast7 URL later.
 5. **Built-in / custom RSS** — **disabled by default**. Opt in via “Enable RSS news” if you want wires mixed with the brief.
 

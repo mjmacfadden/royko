@@ -60,12 +60,6 @@ export interface ComicStripData {
   live?: boolean;
 }
 
-export interface DrawingLesson {
-  title: string;
-  subject: string;
-  steps: string[];
-}
-
 export interface HistoryItem {
   year: number;
   text: string;
@@ -97,7 +91,6 @@ export interface Edition {
   businessTech: RssStory[];
   sports: RssStory[];
   comics: ComicStripData[];
-  drawingLesson: DrawingLesson;
   todayInHistory: HistoryItem[];
   birthdays: BirthdayItem[];
 }
