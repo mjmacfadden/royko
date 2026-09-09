@@ -1,0 +1,12 @@
+---
+interface Props {
+  page: number;
+  total?: number;
+  title?: string;
+}
+const { page, total = 3, title = 'The Northbrook Chronicle' } = Astro.props;
+---
+<footer class="page-folio">
+  <span>{title}</span>
+  <span>Page {page} of {total}</span>
+</footer>

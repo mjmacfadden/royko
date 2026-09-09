@@ -1,0 +1,36 @@
+---
+interface Props {
+  dateDisplay: string;
+  volume: number;
+  number: number;
+  pageLabel?: string;
+}
+const { dateDisplay, volume, number, pageLabel = 'Morning Edition' } = Astro.props;
+
+function roman(n: number): string {
+  const map: [number, string][] = [
+    [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I'],
+  ];
+  let x = n;
+  let out = '';
+  for (const [v, s] of map) {
+    while (x >= v) {
+      out += s;
+      x -= v;
+    }
+  }
+  return out || String(n);
+}
+---
+<header class="masthead">
+  <div class="masthead-top">
+    <span>Northbrook, Illinois · 60062</span>
+    <span>{pageLabel}</span>
+  </div>
+  <h1 class="masthead-title">The Northbrook Chronicle</h1>
+  <p class="masthead-tagline">Independent · Personal · Daily</p>
+  <div class="masthead-date-line">
+    <span>{dateDisplay}</span>
+    <span>Vol. {roman(volume)}, No. {number}</span>
+  </div>
+</header>

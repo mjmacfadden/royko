@@ -1,0 +1,16 @@
+---
+import type { JumbleEntry } from '../data/types';
+interface Props {
+  puzzle: JumbleEntry;
+}
+const { puzzle } = Astro.props;
+---
+<section class="jumble-box" aria-label="Jumble">
+  <h2 class="section-label">Jumble</h2>
+  <p style="font-size: 0.78rem; margin: 0;">{puzzle.clue}</p>
+  <div class="jumble-scrambled">{puzzle.scrambled}</div>
+  <details class="reveal-answer">
+    <summary>Reveal answer</summary>
+    <p><strong>{puzzle.answer}</strong></p>
+  </details>
+</section>

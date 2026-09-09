@@ -1,0 +1,26 @@
+---
+import type { BirthdayItem, HistoryItem } from '../data/types';
+interface Props {
+  history: HistoryItem[];
+  birthdays: BirthdayItem[];
+}
+const { history, birthdays } = Astro.props;
+---
+<section class="history-box" aria-label="Today in history">
+  <h2 class="section-label">Today in History</h2>
+  <ul style="margin: 0; padding-left: 1rem; font-size: 0.75rem;">
+    {history.map((h) => (
+      <li style="margin-bottom: 0.3rem;">
+        <strong>{h.year} —</strong> {h.text}
+      </li>
+    ))}
+  </ul>
+  <h2 class="section-label" style="margin-top: 0.75rem;">Birthdays</h2>
+  <ul style="margin: 0; padding-left: 1rem; font-size: 0.75rem;">
+    {birthdays.map((b) => (
+      <li>
+        <strong>{b.name}</strong> ({b.year}){b.note ? ` — ${b.note}` : ''}
+      </li>
+    ))}
+  </ul>
+</section>

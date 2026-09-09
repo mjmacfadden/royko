@@ -1,0 +1,16 @@
+---
+import type { ComicPlaceholder } from '../data/types';
+interface Props {
+  comic: ComicPlaceholder;
+}
+const { comic } = Astro.props;
+---
+<section class="comic-box" aria-label={comic.title}>
+  <h2 class="section-label">{comic.title}</h2>
+  <div class="comic-frame">
+    <div style="font-style: normal; font-family: var(--sans-small); font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 0.25rem;">
+      {comic.credit}
+    </div>
+    {comic.caption}
+  </div>
+</section>

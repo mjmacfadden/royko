@@ -1,0 +1,161 @@
+---
+import '../styles/newspaper.css';
+import { latestEdition } from '../data/editions/latest';
+import { puzzlesForDate } from '../data/puzzles';
+import Masthead from '../components/Masthead.astro';
+import WeatherWidget from '../components/WeatherWidget.astro';
+import Agenda from '../components/Agenda.astro';
+import LeadStory from '../components/LeadStory.astro';
+import AlsoToday from '../components/AlsoToday.astro';
+import MorningRoundup from '../components/MorningRoundup.astro';
+import StoryColumn from '../components/StoryColumn.astro';
+import CrosswordPuzzle from '../components/CrosswordPuzzle.astro';
+import JumblePuzzle from '../components/JumblePuzzle.astro';
+import SportsTrivia from '../components/SportsTrivia.astro';
+import ComicStrip from '../components/ComicStrip.astro';
+import HowToDraw from '../components/HowToDraw.astro';
+import TodayInHistory from '../components/TodayInHistory.astro';
+import PageFolio from '../components/PageFolio.astro';
+
+const edition = latestEdition;
+const editionDate = new Date(`${edition.date}T12:00:00`);
+const puzzles = puzzlesForDate(editionDate);
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="THE NORTHBROOK CHRONICLE — personal morning newspaper" />
+    <meta name="generator" content={Astro.generator} />
+    <title>THE NORTHBROOK CHRONICLE — {edition.dateDisplay}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Libre+Franklin:wght@400;600;700&family=Playfair+Display:wght@700;900&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="screen-chrome" role="navigation" aria-label="Edition controls">
+      <div style="display:flex; gap:0.5rem; align-items:center;">
+        <button type="button" id="prev-page" aria-label="Previous page">←</button>
+        <span class="page-indicator" id="page-indicator">Page 1 / 3</span>
+        <button type="button" id="next-page" aria-label="Next page">→</button>
+      </div>
+      <div style="display:flex; gap:0.5rem; align-items:center;">
+        <span style="opacity:0.8;">THE NORTHBROOK CHRONICLE</span>
+        <button type="button" id="print-paper">Print today's paper</button>
+      </div>
+    </div>
+
+    <main class="newspaper-shell" id="newspaper">
+      <!-- PAGE 1 -->
+      <section class="newspaper-page is-active" data-page="1" aria-label="Page 1">
+        <Masthead
+          dateDisplay={edition.dateDisplay}
+          volume={edition.volume}
+          number={edition.number}
+          pageLabel="Morning Edition · Page 1"
+        />
+        <div class="page1-grid">
+          <div>
+            <WeatherWidget weather={edition.weather} />
+            <Agenda items={edition.agenda} />
+          </div>
+          <div class="page1-main">
+            <LeadStory story={edition.leadStory} />
+            {edition.morningRoundup && (
+              <MorningRoundup
+                headline={edition.morningRoundup.headline}
+                paragraphs={edition.morningRoundup.paragraphs}
+                imageCaption={edition.morningRoundup.imageCaption}
+              />
+            )}
+          </div>
+          <div>
+            <AlsoToday stories={edition.alsoToday} />
+          </div>
+        </div>
+        <PageFolio page={1} />
+      </section>
+
+      <!-- PAGE 2 -->
+      <section class="newspaper-page" data-page="2" aria-label="Page 2">
+        <Masthead
+          dateDisplay={edition.dateDisplay}
+          volume={edition.volume}
+          number={edition.number}
+          pageLabel="News · Business · Sports · Page 2"
+        />
+        <div class="page2-grid">
+          <StoryColumn label="News" stories={edition.news} />
+          <StoryColumn label="Business · Tech" stories={edition.businessTech} />
+          <StoryColumn label="Sports" stories={edition.sports} />
+        </div>
+        <PageFolio page={2} />
+      </section>
+
+      <!-- PAGE 3 -->
+      <section class="newspaper-page" data-page="3" aria-label="Page 3">
+        <Masthead
+          dateDisplay={edition.dateDisplay}
+          volume={edition.volume}
+          number={edition.number}
+          pageLabel="Puzzles & Features · Page 3"
+        />
+        <div class="page3-grid">
+          <div>
+            <CrosswordPuzzle puzzle={puzzles.crossword} />
+            <JumblePuzzle puzzle={puzzles.jumble} />
+          </div>
+          <div>
+            {edition.comics.map((c) => <ComicStrip comic={c} />)}
+            <SportsTrivia trivia={puzzles.trivia} />
+          </div>
+          <div>
+            <HowToDraw lesson={edition.drawingLesson} />
+            <TodayInHistory history={edition.todayInHistory} birthdays={edition.birthdays} />
+          </div>
+        </div>
+        <PageFolio page={3} />
+      </section>
+    </main>
+
+    <script>
+      const pages = Array.from(document.querySelectorAll<HTMLElement>('.newspaper-page'));
+      const indicator = document.getElementById('page-indicator');
+      const prevBtn = document.getElementById('prev-page') as HTMLButtonElement | null;
+      const nextBtn = document.getElementById('next-page') as HTMLButtonElement | null;
+      const printBtn = document.getElementById('print-paper');
+      let current = 1;
+      const total = pages.length;
+
+      function showPage(n: number) {
+        current = Math.min(Math.max(n, 1), total);
+        pages.forEach((p) => {
+          const num = Number(p.dataset.page);
+          p.classList.toggle('is-active', num === current);
+        });
+        if (indicator) indicator.textContent = `Page ${current} / ${total}`;
+        if (prevBtn) prevBtn.disabled = current <= 1;
+        if (nextBtn) nextBtn.disabled = current >= total;
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      prevBtn?.addEventListener('click', () => showPage(current - 1));
+      nextBtn?.addEventListener('click', () => showPage(current + 1));
+      printBtn?.addEventListener('click', () => window.print());
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowLeft') showPage(current - 1);
+        if (e.key === 'ArrowRight') showPage(current + 1);
+      });
+
+      showPage(1);
+    </script>
+  </body>
+</html>

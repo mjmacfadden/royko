@@ -1,0 +1,15 @@
+---
+import type { TriviaEntry } from '../data/types';
+interface Props {
+  trivia: TriviaEntry;
+}
+const { trivia } = Astro.props;
+---
+<section class="trivia-box" aria-label="Sports trivia">
+  <h2 class="section-label">Sports Trivia · {trivia.category}</h2>
+  <p style="font-size: 0.85rem; margin: 0.25rem 0; font-weight: 700;">{trivia.question}</p>
+  <details class="reveal-answer">
+    <summary>Reveal answer</summary>
+    <p>{trivia.answer}</p>
+  </details>
+</section>

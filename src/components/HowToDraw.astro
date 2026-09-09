@@ -1,0 +1,15 @@
+---
+import type { DrawingLesson } from '../data/types';
+interface Props {
+  lesson: DrawingLesson;
+}
+const { lesson } = Astro.props;
+---
+<section class="draw-box" aria-label="How to draw">
+  <h2 class="section-label">{lesson.title}</h2>
+  <p style="font-size: 0.75rem; font-style: italic; margin: 0 0 0.35rem;">{lesson.subject}</p>
+  <div class="image-placeholder" style="min-height: 100px;">Sketch area</div>
+  <ol class="draw-steps">
+    {lesson.steps.map((s) => <li>{s}</li>)}
+  </ol>
+</section>
