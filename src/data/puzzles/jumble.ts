@@ -367,7 +367,7 @@ export const jumbleBank: JumbleEntry[] = [
   {
     "dayOfYear": 52,
     "dateKey": "02-21",
-    "clue": "From the AP",
+    "clue": "News from the wire",
     "scrambled": "WPCYROEI",
     "answer": "WIRECOPY"
   },
