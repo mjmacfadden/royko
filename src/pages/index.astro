@@ -7,6 +7,7 @@ import { puzzlesForDate } from '../data/puzzles';
 import { buildLiveEdition } from '../lib/edition';
 import { PAPER_NAME_UPPER } from '../lib/site';
 import { NEWS_FEEDS } from '../data/feeds';
+import { COMIC_FEEDS } from '../data/feeds/comics';
 import Masthead from '../components/Masthead.astro';
 import WeatherWidget from '../components/WeatherWidget.astro';
 import Agenda from '../components/Agenda.astro';
@@ -28,6 +29,7 @@ const { edition, feedStatus, comicsLive } = await buildLiveEdition(latestEdition
 const editionDate = new Date(`${edition.date}T12:00:00`);
 const puzzles = puzzlesForDate(editionDate);
 const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.section }));
+const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 ---
 
 <!doctype html>
@@ -60,12 +62,23 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
       </div>
       <div style="display:flex; gap:0.5rem; align-items:center;">
         <span style="opacity:0.8;">{PAPER_NAME_UPPER}</span>
+        <button type="button" id="open-grok-paste">Paste brief</button>
         <button type="button" id="open-settings">Settings</button>
         <button type="button" id="print-paper">Print today's paper</button>
       </div>
     </div>
 
     <SettingsPanel />
+
+    <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
+      <h2>Paste Grok Automation brief</h2>
+      <p class="settings-help">Markdown with <code>##</code> sections — interleaves with RSS on the paper.</p>
+      <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
+      <div class="grok-brief-actions">
+        <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
+        <button type="button" id="grok-paste-close">Close</button>
+      </div>
+    </aside>
 
     <main class="newspaper-shell" id="newspaper">
       <!-- PAGE 1 -->
@@ -79,7 +92,9 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         <div class="page1-grid">
           <div>
             <WeatherWidget weather={edition.weather} />
+            <div data-grok-weather></div>
             <Agenda items={edition.agenda} />
+            <div data-grok-watch></div>
           </div>
           <div class="page1-main" data-live-lead>
             <LeadStory story={edition.leadStory} />
@@ -138,7 +153,7 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
             <CrosswordPuzzle puzzle={puzzles.crossword} />
             <JumblePuzzle puzzle={puzzles.jumble} />
           </div>
-          <div>
+          <div data-live-comics>
             {edition.comics.map((c) => <ComicStrip comic={c} />)}
             <SportsTrivia trivia={puzzles.trivia} />
           </div>
@@ -153,6 +168,7 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
     </main>
 
     <script id="feed-catalog" type="application/json" set:html={JSON.stringify(feedCatalog)} />
+    <script id="comic-catalog" type="application/json" set:html={JSON.stringify(comicCatalog)} />
     <script id="edition-bootstrap" type="application/json" set:html={JSON.stringify({
       date: edition.date,
       lead: edition.leadStory,
@@ -160,6 +176,7 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
       news: edition.news,
       businessTech: edition.businessTech,
       sports: edition.sports,
+      agenda: edition.agenda,
     })} />
 
     <script>
@@ -167,10 +184,21 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         defaultSettings,
         loadSettings,
         saveSettings,
+        loadGrokBrief,
+        saveGrokBrief,
+        clearGrokBrief,
         wundergroundUrlForZip,
         type PaperSettings,
         type CustomFeed,
       } from '../lib/settings';
+      import type { CalendarSource } from '../lib/calendar';
+      import {
+        parseGrokBrief,
+        grokItemsAsStories,
+        interleave,
+        type ParsedGrokBrief,
+        type BriefStoryCard,
+      } from '../lib/grokBrief';
 
       const pages = Array.from(document.querySelectorAll<HTMLElement>('.newspaper-page'));
       const indicator = document.getElementById('page-indicator');
@@ -203,9 +231,14 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
       });
       showPage(1);
 
-      // —— Settings ——
       let settings: PaperSettings = loadSettings();
       let customFeeds: CustomFeed[] = [...settings.customFeeds];
+      let calendars: CalendarSource[] = [...settings.calendars];
+      let lastRss: any = null;
+      let lastGrok: ParsedGrokBrief | null = null;
+
+      const bootstrapEl = document.getElementById('edition-bootstrap');
+      const bootstrap = bootstrapEl ? JSON.parse(bootstrapEl.textContent || '{}') : {};
 
       function applyWeather(zip: string) {
         const zipEl = document.querySelector('[data-weather-zip]');
@@ -217,20 +250,33 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         else if (label) label.textContent = `ZIP ${zip}`;
       }
 
-      function storyHtml(s: { title: string; description: string; url: string; source: string }) {
-        return `<article class="story-item">
-          <h3><a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></h3>
-          <p class="deck">${escapeHtml(s.description)}</p>
-          <p class="meta">${escapeHtml(s.source)}</p>
-        </article>`;
-      }
-
       function escapeHtml(t: string) {
         return t
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
+      }
+
+      function storyHtml(s: { title: string; description: string; url?: string; source: string; brief?: boolean }) {
+        const title = s.url
+          ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>`
+          : escapeHtml(s.title);
+        const cls = s.brief ? 'story-item brief-item' : 'story-item';
+        return `<article class="${cls}">
+          <h3>${title}</h3>
+          <p class="deck">${escapeHtml(s.description)}</p>
+          <p class="meta">${escapeHtml(s.source)}</p>
+        </article>`;
+      }
+
+      function briefHtml(s: BriefStoryCard) {
+        return storyHtml({
+          title: s.title,
+          description: s.description,
+          source: s.source,
+          brief: true,
+        });
       }
 
       function renderColumn(rootSel: string, label: string, stories: any[]) {
@@ -240,7 +286,7 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
           root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2><p class="deck">No stories for today’s filters.</p></section>`;
           return;
         }
-        root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2>${stories.map(storyHtml).join('')}</section>`;
+        root.innerHTML = `<section class="story-column"><h2 class="section-label">${label}</h2>${stories.map((s) => storyHtml(s)).join('')}</section>`;
       }
 
       function renderAlso(stories: any[]) {
@@ -250,9 +296,9 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
           <h2 class="section-label">Also today</h2>
           ${(stories || [])
             .map(
-              (s) => `<article class="brief">
-              <h3><a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a></h3>
-              <p>${escapeHtml(s.description)}</p>
+              (s) => `<article class="brief ${s.brief ? 'brief-item' : ''}">
+              <h3>${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>` : escapeHtml(s.title)}</h3>
+              <p>${escapeHtml(s.description || '')}</p>
               <p class="source">${escapeHtml(s.source)}</p>
             </article>`,
             )
@@ -260,16 +306,121 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         </section>`;
       }
 
-      function renderLead(story: any) {
+      function renderLead(story: any, grokLede?: string | null, grokRoundupParas?: string[]) {
         const root = document.querySelector('[data-live-lead]');
         if (!root || !story) return;
-        const roundup = root.querySelector('.roundup-box');
-        const roundupHtml = roundup ? roundup.outerHTML : '';
+        let roundupHtml = '';
+        if (grokLede || (grokRoundupParas && grokRoundupParas.length)) {
+          const paras = grokRoundupParas?.length
+            ? grokRoundupParas
+            : grokLede
+              ? [grokLede]
+              : [];
+          roundupHtml = `<aside class="roundup-box brief-item" aria-label="Morning brief">
+            <div class="kicker">Brief · Morning roundup</div>
+            <h3 style="font-family: var(--serif-display); font-size: 1.05rem; margin: 0 0 0.25rem;">From the Automation</h3>
+            ${paras.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
+          </aside>`;
+        } else {
+          const existing = root.querySelector('.roundup-box');
+          if (existing) roundupHtml = existing.outerHTML;
+        }
         root.innerHTML = `<article class="lead-story">
+          <h2 class="section-label">Lead · From the wires</h2>
           <h2><a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a></h2>
           <p class="lead-deck">${escapeHtml(story.description)}</p>
           <p class="lead-meta">${escapeHtml(story.source)}</p>
         </article>${roundupHtml}`;
+      }
+
+      function renderAgenda(items: { time: string; title: string; note?: string }[]) {
+        const root = document.querySelector('[data-live-agenda]');
+        if (!root) return;
+        root.innerHTML = `<h2 class="section-label">Today's Agenda</h2>
+          <ul class="agenda-list">
+            ${(items || [])
+              .map(
+                (item) => `<li>
+              <span class="time">${escapeHtml(item.time)}</span>
+              <span class="title">${escapeHtml(item.title)}</span>
+              ${item.note ? `<span class="note">${escapeHtml(item.note)}</span>` : ''}
+            </li>`,
+              )
+              .join('')}
+          </ul>`;
+      }
+
+      function renderGrokWeather(parsed: ParsedGrokBrief | null) {
+        const root = document.querySelector('[data-grok-weather]');
+        if (!root) return;
+        const weather = parsed?.sections.find((s) => s.kind === 'weather');
+        if (!weather || (!weather.paragraphs.length && !weather.items.length)) {
+          root.innerHTML = '';
+          return;
+        }
+        const body =
+          weather.paragraphs.join(' ') ||
+          weather.items.map((i) => `${i.headline}. ${i.body}`).join(' ');
+        root.innerHTML = `<aside class="grok-weather-box brief-item">
+          <h2 class="section-label">Brief · Weather</h2>
+          <p>${escapeHtml(body)}</p>
+        </aside>`;
+      }
+
+      function renderGrokWatch(parsed: ParsedGrokBrief | null) {
+        const root = document.querySelector('[data-grok-watch]');
+        if (!root) return;
+        const watch = parsed?.sections.find((s) => s.kind === 'watch');
+        if (!watch || !watch.bullets.length) {
+          root.innerHTML = '';
+          return;
+        }
+        root.innerHTML = `<aside class="grok-watch-box brief-item">
+          <h2 class="section-label">What to watch</h2>
+          <ul class="watch-list">
+            ${watch.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
+          </ul>
+        </aside>`;
+      }
+
+      function asBriefCards(stories: any[], column: string): any[] {
+        return (stories || []).map((s) => ({ ...s, brief: false, column }));
+      }
+
+      function composeEdition(rss: any, grok: ParsedGrokBrief | null) {
+        const newsRss = asBriefCards(rss.news || [], 'news');
+        const bizRss = asBriefCards(rss.businessTech || [], 'businessTech');
+        const sportsRss = asBriefCards(rss.sports || [], 'sports');
+        const alsoRss = asBriefCards(rss.alsoToday || [], 'also');
+        const lead = rss.lead?.[0] || rss.news?.[0] || bootstrap.lead;
+
+        if (!grok) {
+          if (lead) renderLead(lead);
+          renderAlso(alsoRss.slice(0, 5));
+          renderColumn('[data-live-news]', 'News', newsRss.slice(0, 5));
+          renderColumn('[data-live-biz]', 'Business · Tech', bizRss.slice(0, 5));
+          renderColumn('[data-live-sports]', 'Sports', sportsRss.slice(0, 5));
+          renderGrokWeather(null);
+          renderGrokWatch(null);
+          return;
+        }
+
+        const cards = grokItemsAsStories(grok);
+        const briefNews = cards.filter((c) => c.column === 'news').map((c) => ({ ...c, brief: true, url: undefined }));
+        const briefAlso = cards.filter((c) => c.column === 'also').map((c) => ({ ...c, brief: true, url: undefined }));
+        const briefSports = cards.filter((c) => c.column === 'sports').map((c) => ({ ...c, brief: true, url: undefined }));
+        const briefBiz = cards.filter((c) => c.column === 'businessTech').map((c) => ({ ...c, brief: true, url: undefined }));
+
+        // Lede + optional first national item already in columns — roundup from lede only
+        renderLead(lead, grok.lede, []);
+        renderGrokWeather(grok);
+        renderGrokWatch(grok);
+
+        // Interleave: Brief item, RSS item, …
+        renderAlso(interleave(briefAlso, alsoRss).slice(0, 6));
+        renderColumn('[data-live-news]', 'News', interleave(briefNews, newsRss).slice(0, 6));
+        renderColumn('[data-live-biz]', 'Business · Tech', interleave(briefBiz, bizRss).slice(0, 6));
+        renderColumn('[data-live-sports]', 'Sports', interleave(briefSports, sportsRss).slice(0, 6));
       }
 
       async function refreshStories(s: PaperSettings) {
@@ -289,28 +440,83 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);
           const data = await res.json();
-          const news = data.news?.length ? data.news.slice(0, 4) : [];
-          const biz = data.businessTech?.length ? data.businessTech.slice(0, 4) : [];
-          const sports = data.sports?.length ? data.sports.slice(0, 4) : [];
-          const lead = data.lead?.[0] || news[0];
-          const also = data.alsoToday?.length
-            ? data.alsoToday.slice(0, 4)
-            : news.slice(1, 5);
-          if (lead) renderLead(lead);
-          renderAlso(also);
-          renderColumn('[data-live-news]', 'News', news);
-          renderColumn('[data-live-biz]', 'Business · Tech', biz);
-          renderColumn('[data-live-sports]', 'Sports', sports);
+          lastRss = {
+            news: data.news?.length ? data.news.slice(0, 5) : bootstrap.news || [],
+            businessTech: data.businessTech?.length ? data.businessTech.slice(0, 5) : bootstrap.businessTech || [],
+            sports: data.sports?.length ? data.sports.slice(0, 5) : bootstrap.sports || [],
+            lead: data.lead?.length ? data.lead : data.news?.length ? [data.news[0]] : [bootstrap.lead],
+            alsoToday: data.alsoToday?.length
+              ? data.alsoToday.slice(0, 5)
+              : (data.news || []).slice(1, 5),
+          };
+          composeEdition(lastRss, lastGrok);
           if (status) {
-            status.textContent = `Updated · ${(data.okFeeds || []).length} feeds ok` +
+            status.textContent =
+              `Updated · ${(data.okFeeds || []).length} feeds ok` +
               (data.failedFeeds?.length ? ` · ${data.failedFeeds.length} skipped` : '');
           }
         } catch (e) {
+          lastRss = {
+            news: bootstrap.news || [],
+            businessTech: bootstrap.businessTech || [],
+            sports: bootstrap.sports || [],
+            lead: bootstrap.lead ? [bootstrap.lead] : [],
+            alsoToday: bootstrap.alsoToday || [],
+          };
+          composeEdition(lastRss, lastGrok);
           if (status) {
             status.textContent =
               'Could not refresh via API (using printed edition). ' +
               (e instanceof Error ? e.message : String(e));
           }
+        }
+      }
+
+      async function refreshAgenda(s: PaperSettings) {
+        const editionDate = document.body.dataset.editionDate || '';
+        if (!s.calendars.length) {
+          renderAgenda(bootstrap.agenda || []);
+          return;
+        }
+        try {
+          const res = await fetch('/api/calendar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ calendars: s.calendars, editionDate }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          renderAgenda(data.items || bootstrap.agenda || []);
+        } catch {
+          renderAgenda(bootstrap.agenda || []);
+        }
+      }
+
+      function applyGrokText(text: string) {
+        const editionDate = document.body.dataset.editionDate || '';
+        const trimmed = text.trim();
+        if (!trimmed) {
+          clearGrokBrief();
+          lastGrok = null;
+        } else {
+          saveGrokBrief(trimmed, editionDate);
+          lastGrok = parseGrokBrief(trimmed);
+        }
+        if (!lastRss) {
+          lastRss = {
+            news: bootstrap.news || [],
+            businessTech: bootstrap.businessTech || [],
+            sports: bootstrap.sports || [],
+            lead: bootstrap.lead ? [bootstrap.lead] : [],
+            alsoToday: bootstrap.alsoToday || [],
+          };
+        }
+        composeEdition(lastRss, lastGrok);
+        const st = document.getElementById('grok-brief-status');
+        if (st) {
+          st.textContent = lastGrok
+            ? `Brief saved · ${lastGrok.sections.length} sections · ${grokItemsAsStories(lastGrok).length} items`
+            : 'Brief cleared';
         }
       }
 
@@ -334,14 +540,42 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         });
       }
 
+      function renderCalendarsList() {
+        const list = document.getElementById('calendars-list');
+        if (!list) return;
+        list.innerHTML = calendars
+          .map(
+            (c, i) => `<div class="custom-feed-row">
+              <span><strong>${escapeHtml(c.label)}</strong><br/>${escapeHtml(c.url)}</span>
+              <button type="button" data-remove-cal="${i}">Remove</button>
+            </div>`,
+          )
+          .join('');
+        list.querySelectorAll('[data-remove-cal]').forEach((btn) => {
+          btn.addEventListener('click', () => {
+            const idx = Number((btn as HTMLElement).getAttribute('data-remove-cal'));
+            calendars.splice(idx, 1);
+            renderCalendarsList();
+          });
+        });
+      }
+
       function populateSettingsForm(s: PaperSettings) {
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         if (zipInput) zipInput.value = s.zip;
         document.querySelectorAll<HTMLInputElement>('input[name="feed"]').forEach((cb) => {
           cb.checked = s.enabledFeedIds.includes(cb.value);
         });
+        document.querySelectorAll<HTMLInputElement>('input[name="comic"]').forEach((cb) => {
+          cb.checked = s.enabledComicIds.includes(cb.value);
+        });
         customFeeds = [...s.customFeeds];
+        calendars = [...s.calendars];
         renderCustomList();
+        renderCalendarsList();
+        const grokStore = loadGrokBrief();
+        const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+        if (ta) ta.value = grokStore?.text || '';
       }
 
       function readSettingsFromForm(): PaperSettings {
@@ -350,10 +584,15 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         const enabledFeedIds = Array.from(
           document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
         ).map((cb) => cb.value);
+        const enabledComicIds = Array.from(
+          document.querySelectorAll<HTMLInputElement>('input[name="comic"]:checked'),
+        ).map((cb) => cb.value);
         return {
           zip: /^\d{5}$/.test(zip) ? zip : '60062',
           enabledFeedIds,
           customFeeds: [...customFeeds],
+          enabledComicIds,
+          calendars: [...calendars],
         };
       }
 
@@ -373,6 +612,16 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         renderCustomList();
       });
 
+      document.getElementById('calendar-add-btn')?.addEventListener('click', () => {
+        const label = (document.getElementById('calendar-label') as HTMLInputElement)?.value.trim() || 'Calendar';
+        const url = (document.getElementById('calendar-url') as HTMLInputElement)?.value.trim();
+        if (!url || !url.startsWith('http')) return;
+        calendars.push({ id: `cal-${Date.now()}`, label, url });
+        (document.getElementById('calendar-label') as HTMLInputElement).value = '';
+        (document.getElementById('calendar-url') as HTMLInputElement).value = '';
+        renderCalendarsList();
+      });
+
       document.getElementById('settings-reset')?.addEventListener('click', () => {
         settings = defaultSettings();
         populateSettingsForm(settings);
@@ -382,19 +631,100 @@ const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.
         settings = readSettingsFromForm();
         saveSettings(settings);
         applyWeather(settings.zip);
-        await refreshStories(settings);
+        applyComicVisibility(settings);
+        const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+        if (ta) applyGrokText(ta.value);
+        await Promise.all([refreshStories(settings), refreshAgenda(settings)]);
       });
 
-      // Apply persisted ZIP on load; optionally refresh if settings differ from defaults
+      document.getElementById('grok-brief-save')?.addEventListener('click', () => {
+        const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+        applyGrokText(ta?.value || '');
+      });
+      document.getElementById('grok-brief-clear')?.addEventListener('click', () => {
+        const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+        if (ta) ta.value = '';
+        applyGrokText('');
+      });
+      document.getElementById('grok-brief-sample')?.addEventListener('click', async () => {
+        try {
+          const res = await fetch('/samples/grok-brief-example.md');
+          // Prefer importing via static path — also try data URL from settings help
+          let text = '';
+          if (res.ok) text = await res.text();
+          else {
+            // inline minimal fallback pointing user to fixture
+            text = (document.getElementById('grok-brief-input') as HTMLTextAreaElement)?.value || '';
+          }
+          const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+          if (ta && text) ta.value = text;
+          if (text) applyGrokText(text);
+        } catch {
+          /* ignore */
+        }
+      });
+
+      // Quick paste panel
+      const pastePanel = document.getElementById('grok-paste-panel');
+      document.getElementById('open-grok-paste')?.addEventListener('click', () => {
+        const store = loadGrokBrief();
+        const q = document.getElementById('grok-paste-quick') as HTMLTextAreaElement | null;
+        if (q) q.value = store?.text || '';
+        pastePanel?.removeAttribute('hidden');
+      });
+      document.getElementById('grok-paste-close')?.addEventListener('click', () => {
+        pastePanel?.setAttribute('hidden', '');
+      });
+      document.getElementById('grok-paste-apply')?.addEventListener('click', () => {
+        const q = document.getElementById('grok-paste-quick') as HTMLTextAreaElement | null;
+        applyGrokText(q?.value || '');
+        const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+        if (ta && q) ta.value = q.value;
+        pastePanel?.setAttribute('hidden', '');
+      });
+
+      // Boot: weather, optional grok, calendars, settings-driven RSS
+
+      function applyComicVisibility(s: PaperSettings) {
+        const enabled = new Set(s.enabledComicIds);
+        document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box').forEach((box) => {
+          const label = box.getAttribute('aria-label') || '';
+          // Match by section label text against catalog titles is fragile; use data-comic-id if present
+          const id = box.dataset.comicId;
+          if (id) box.style.display = enabled.has(id) ? '' : 'none';
+          else {
+            // fallback: hide if title not in enabled set by matching known titles
+            const title = (box.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
+            const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal' };
+            const cid = map[title];
+            if (cid) box.style.display = enabled.has(cid) ? '' : 'none';
+          }
+        });
+      }
+
       applyWeather(settings.zip);
+      applyComicVisibility(settings);
+      const storedGrok = loadGrokBrief();
+      if (storedGrok?.text) {
+        lastGrok = parseGrokBrief(storedGrok.text);
+      }
+      lastRss = {
+        news: bootstrap.news || [],
+        businessTech: bootstrap.businessTech || [],
+        sports: bootstrap.sports || [],
+        lead: bootstrap.lead ? [bootstrap.lead] : [],
+        alsoToday: bootstrap.alsoToday || [],
+      };
+      if (lastGrok) composeEdition(lastRss, lastGrok);
+
       const defaults = defaultSettings();
       const differs =
         settings.zip !== defaults.zip ||
         settings.enabledFeedIds.slice().sort().join() !== defaults.enabledFeedIds.slice().sort().join() ||
-        settings.customFeeds.length > 0;
-      if (differs) {
-        refreshStories(settings);
-      }
+        settings.customFeeds.length > 0 ||
+        settings.calendars.length > 0;
+      if (differs) refreshStories(settings);
+      if (settings.calendars.length) refreshAgenda(settings);
     </script>
   </body>
 </html>

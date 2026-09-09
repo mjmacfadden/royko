@@ -10,14 +10,14 @@
   --rule-thin: 1px solid var(--rule);
   --rule-double: 3px double var(--rule);
   --accent: #1a1a1a;
-  --col-gap: 0.55rem;
-  --page-pad: 0.45in;
+  --col-gap: 0.4rem;
+  --page-pad: 0.32in;
   --serif-display: 'Playfair Display', 'Times New Roman', Times, serif;
   --serif-masthead: 'Manufacturing Consent', 'UnifrakturCook', 'Times New Roman', serif;
   --serif-body: 'Merriweather', 'Georgia', 'Times New Roman', serif;
   --sans-small: 'Libre Franklin', 'Helvetica Neue', Arial, sans-serif;
   --body-size: 10pt;
-  --body-lh: 1.28;
+  --body-lh: 1.22;
 }
 
 *,
@@ -101,7 +101,7 @@ a:hover {
 
 .newspaper-shell {
   max-width: 8.5in;
-  margin: 1rem auto 2rem;
+  margin: 0.5rem auto 1rem;
   background: var(--paper);
   color: var(--ink);
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
@@ -123,8 +123,8 @@ a:hover {
 .masthead {
   text-align: center;
   border-bottom: var(--rule-double);
-  padding-bottom: 0.35rem;
-  margin-bottom: 0.45rem;
+  padding-bottom: 0.2rem;
+  margin-bottom: 0.3rem;
 }
 
 .masthead-top {
@@ -195,13 +195,13 @@ a:hover {
 .page1-main {
   border-left: var(--rule-thin);
   border-right: var(--rule-thin);
-  padding: 0 0.5rem;
+  padding: 0 0.35rem;
 }
 
 .weather-widget {
   border: var(--rule-thin);
   padding: 0.35rem;
-  margin-bottom: 0.45rem;
+  margin-bottom: 0.3rem;
   background: var(--paper-white);
 }
 
@@ -249,8 +249,8 @@ a:hover {
 .agenda-list li {
   display: grid;
   grid-template-columns: 4.2rem 1fr;
-  gap: 0.3rem;
-  padding: 0.22rem 0;
+  gap: 0.25rem;
+  padding: 0.14rem 0;
   border-bottom: 1px dotted #999;
   font-size: 0.72rem;
 }
@@ -327,8 +327,8 @@ a:hover {
 }
 
 .also-today .brief {
-  margin-bottom: 0.4rem;
-  padding-bottom: 0.3rem;
+  margin-bottom: 0.28rem;
+  padding-bottom: 0.22rem;
   border-bottom: 1px dotted #999;
 }
 
@@ -358,8 +358,8 @@ a:hover {
 }
 
 .roundup-box {
-  margin-top: 0.5rem;
-  padding-top: 0.35rem;
+  margin-top: 0.35rem;
+  padding-top: 0.25rem;
   border-top: var(--rule-double);
 }
 
@@ -390,12 +390,12 @@ a:hover {
 
 .story-column + .story-column {
   border-left: var(--rule-thin);
-  padding-left: 0.5rem;
+  padding-left: 0.35rem;
 }
 
 .story-item {
-  margin-bottom: 0.5rem;
-  padding-bottom: 0.35rem;
+  margin-bottom: 0.35rem;
+  padding-bottom: 0.25rem;
   border-bottom: 1px dotted #999;
 }
 
@@ -439,7 +439,7 @@ a:hover {
 
 .page3-grid > * + * {
   border-left: var(--rule-thin);
-  padding-left: 0.5rem;
+  padding-left: 0.35rem;
 }
 
 .crossword-grid {
@@ -505,7 +505,7 @@ a:hover {
 .history-box,
 .draw-box,
 .comic-box {
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
 }
 
 .puzzle-clue {
@@ -565,7 +565,7 @@ a:hover {
 .comic-image {
   display: block;
   max-width: 100%;
-  max-height: 110px;
+  max-height: 95px;
   width: auto;
   height: auto;
   margin: 0 auto;
@@ -600,8 +600,8 @@ a:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 0.55rem;
-  padding-top: 0.25rem;
+  margin-top: 0.35rem;
+  padding-top: 0.18rem;
   border-top: var(--rule-thin);
   font-family: var(--sans-small);
   font-size: 0.6rem;
@@ -612,10 +612,10 @@ a:hover {
 /* —— Answers QR —— */
 .answers-qr {
   border: var(--rule-thin);
-  padding: 0.4rem;
+  padding: 0.3rem;
   text-align: center;
   background: var(--paper-white);
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.35rem;
   break-inside: avoid;
 }
 
@@ -966,11 +966,148 @@ a:hover {
   }
 }
 
+
+/* —— Brief vs RSS distinction —— */
+.brief-item .meta,
+.brief-item .source,
+.brief-item .kicker {
+  font-style: normal;
+}
+
+.brief-item {
+  background: linear-gradient(90deg, rgba(26, 26, 26, 0.04), transparent 12px);
+  padding-left: 0.35rem;
+}
+
+.grok-weather-box,
+.grok-watch-box {
+  border: var(--rule-thin);
+  padding: 0.28rem 0.35rem;
+  margin: 0.3rem 0;
+  background: var(--paper-white);
+  font-size: 0.7rem;
+}
+
+.grok-weather-box p {
+  margin: 0;
+  line-height: var(--body-lh);
+}
+
+.watch-list {
+  margin: 0;
+  padding-left: 0.95rem;
+  font-size: 0.68rem;
+  line-height: 1.25;
+}
+
+.watch-list li {
+  margin-bottom: 0.1rem;
+}
+
+.grok-brief-textarea,
+#grok-paste-quick {
+  width: 100%;
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.35;
+  padding: 0.45rem;
+  border: 1px solid #333;
+  background: #fff;
+  resize: vertical;
+  min-height: 8rem;
+}
+
+.grok-brief-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+}
+
+.grok-brief-actions button,
+.calendar-add button {
+  appearance: none;
+  border: 1px solid #1a1a1a;
+  background: transparent;
+  font: inherit;
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.55rem;
+  cursor: pointer;
+}
+
+.grok-paste-panel {
+  max-width: 8.5in;
+  margin: 0.5rem auto;
+  padding: 0.75rem 1rem;
+  background: #1a1a1a;
+  color: #f7f3e8;
+  font-family: var(--sans-small);
+}
+
+.grok-paste-panel h2 {
+  font-family: var(--serif-display);
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+  color: #f7f3e8;
+}
+
+.grok-paste-panel .settings-help {
+  color: #d8d2c4;
+}
+
+.grok-paste-panel .primary-ish {
+  background: #f7f3e8;
+  color: #1a1a1a;
+}
+
+.settings-comics {
+  border: 1px solid #999;
+  padding: 0.4rem 0.55rem 0.5rem;
+  margin: 0;
+}
+
+.settings-comics legend {
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 0 0.25rem;
+}
+
+.settings-comics em {
+  font-style: normal;
+  color: var(--ink-muted);
+  font-size: 0.7em;
+}
+
+.settings-dialog {
+  max-height: min(90vh, 40rem);
+  overflow: auto;
+}
+
+@media print {
+  .grok-paste-panel {
+    display: none !important;
+  }
+
+  .brief-item {
+    background: none;
+    padding-left: 0;
+  }
+
+  .grok-weather-box,
+  .grok-watch-box {
+    margin: 0.2rem 0;
+    padding: 0.2rem 0.25rem;
+  }
+}
+
 /* —— PRINT IS KING —— */
 @media print {
   @page {
     size: letter portrait;
-    margin: 0.4in;
+    margin: 0.32in;
   }
 
   html,
@@ -1021,7 +1158,7 @@ a:hover {
   .page2-grid,
   .page3-grid {
     grid-template-columns: 1fr 1fr 1fr !important;
-    gap: 0.35rem;
+    gap: 0.25rem;
   }
 
   .page1-main {

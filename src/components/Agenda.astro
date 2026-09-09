@@ -5,7 +5,7 @@ interface Props {
 }
 const { items } = Astro.props;
 ---
-<section class="agenda" aria-label="Today's agenda">
+<section class="agenda" aria-label="Today's agenda" data-live-agenda>
   <h2 class="section-label">Today's Agenda</h2>
   <ul class="agenda-list">
     {items.map((item) => (

@@ -5,7 +5,7 @@ interface Props {
 }
 const { comic } = Astro.props;
 ---
-<section class="comic-box" aria-label={comic.title}>
+<section class="comic-box" aria-label={comic.title} data-comic-id={comic.id}>
   <h2 class="section-label">{comic.title}</h2>
   <div class="comic-frame">
     <div class="comic-credit">

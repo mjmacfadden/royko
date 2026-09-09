@@ -43,21 +43,67 @@ Example: `http://localhost:4321/answers/2026-09-09`
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
 | Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
-| Live RSS ingestion (build-time + `/api/rss`) | ✅ Phase 2-lite |
-| Settings panel (feeds, ZIP, custom RSS) | ✅ localStorage |
-| Comics RSS (xkcd + Garfield via comicsrss) | ✅ best-effort hotlink |
-| Live calendar (Google OAuth) | ❌ Later |
+| Live RSS ingestion (build-time + `/api/rss`) | ✅ |
+| Settings panel (feeds, ZIP, comics, calendars, Grok brief) | ✅ localStorage |
+| Comics RSS (xkcd + SMBC + The Oatmeal) | ✅ best-effort hotlink |
+| Public ICS calendars → agenda (multi-calendar merge) | ✅ `/api/calendar` |
+| Grok Automation paste interleaved with RSS | ✅ |
+| Google Calendar OAuth | ❌ Not needed — use public ICS |
 | Auth / Supabase | ❌ Out of scope |
 
 ### Settings (screen only)
 
-Open **Settings** in the top chrome:
+Open **Settings** in the top chrome (or **Paste brief** for a quick Grok paste):
 
-1. **Opt into/out of built-in RSS feeds** (checkboxes).
-2. **ZIP code** for Weather Underground (default `60062`).
-3. **Custom RSS URLs** — **today-only** (America/Chicago / edition date). Built-in refresh also uses today-only via the API.
+1. **Grok Automation brief** — paste markdown; compose into the paper interleaved with RSS.
+2. **Public calendar ICS URLs** — add/remove; today’s events (America/Chicago) merge into the agenda.
+3. **Comics** — opt into/out of xkcd, SMBC, The Oatmeal (max 3 on page).
+4. **ZIP code** for Weather Underground (default `60062`).
+5. **Built-in / custom RSS** — today-only filter via `/api/rss`.
 
-Prefs persist in `localStorage` (`daily-mike-settings-v1`). Save triggers `/api/rss` (server-side fetch, avoids CORS). Empty/failed settings never blank the paper — build-time snapshot remains.
+Prefs persist in `localStorage` (`daily-mike-settings-v1`). Grok paste: `daily-mike-grok-brief-v1`.
+
+### Grok Automation brief
+
+Paste the morning Automation output (canonical shape):
+
+- Title: `**The Daily Mike**`
+- Date line + `America/Chicago`
+- Optional lede before the first `##`
+- Sections: `## Weather — …`, `## National & World`, `## United States / Illinois / Chicago`, `## Sports`, `## Markets`, `## What to watch today`
+- Items: `**Headline**` + prose + optional `Named source:` / `Source:` lines
+- Bullets under What to watch; footer like `Compiled 5:50 a.m. CT…`
+
+Parser: `src/lib/grokBrief.ts`  
+Sample fixture: `src/data/samples/grok-brief-example.md` (also `/samples/grok-brief-example.md`)
+
+**How it maps onto the paper**
+
+| Brief section | Placement |
+|---------------|-----------|
+| Weather prose | Small “Brief · Weather” under the WU strip (doesn’t replace the widget) |
+| National & World | Interleaved into **News** with RSS (`Brief` label) |
+| Illinois / Chicago | Interleaved into **Also today** |
+| Sports / Markets | Interleaved into Sports / Business · Tech |
+| What to watch | Tight list under agenda |
+| Lede | Roundup box under the lead wire story |
+
+RSS items keep their source attribution; Grok items show **Brief** (plus named source when present).
+
+### Public calendars (ICS)
+
+No OAuth. Server route **`POST /api/calendar`** fetches ICS (avoids CORS), parses `VEVENT`, keeps events whose start falls on **today in America/Chicago**, merges all calendars, sorts by start ascending.
+
+**Google Calendar → public ICS / secret address**
+
+1. Open [Google Calendar](https://calendar.google.com) on the web.
+2. Settings (gear) → select the calendar under **Settings for my calendars**.
+3. Scroll to **Integrate calendar**.
+4. Copy **Secret address in iCal format** (private-but-URL) *or* make the calendar public and use **Public address in iCal format**.
+5. Paste that `https://calendar.google.com/calendar/ical/…/basic.ics` URL into Settings → Public calendars.
+6. Optional label (e.g. “Family”) — shown on agenda rows when more than one calendar is configured.
+
+Any other `.ics` URL works the same way. Empty/failed fetches fall back to the placeholder agenda.
 
 ### News / RSS
 
@@ -77,20 +123,20 @@ Build merges live items in `src/lib/edition.ts` (today-first, then latest, then 
 
 ### Puzzle answers + QR
 
-- Paper puzzles **do not** reveal answers (`<details>` removed).
+- Paper puzzles **do not** reveal answers.
 - Answers: `/answers/YYYY-MM-DD` (phone-friendly).
-- QR on puzzles page (build-time SVG via `qrcode`) → answers URL; caption: “Scan for today’s puzzle answers”.
+- QR on puzzles page (build-time SVG via `qrcode`) → answers URL.
 
 ### Comics
 
 Config: `src/data/feeds/comics.ts`  
-Pipeline: `src/lib/comics.ts` — fetch image URL + title + link; **hotlink** with credit; link out to publisher (do not re-host). Fallback UI if feed fails.
+Pipeline: `src/lib/comics.ts` — RSS 2.0 / Atom / **RSS 1.0 RDF** (Oatmeal); hotlink + credit; link out (do not re-host). Graceful fallback if empty/fails.
 
-Default strips: **xkcd**, **SMBC** (creator RSS). GoComics-backed comicsrss feeds are currently halted.
+Default strips: **xkcd**, **SMBC**, **The Oatmeal** (capped at 3 for print).
 
 ### Typography
 
-- **Masthead:** [Manufacturing Consent](https://fonts.google.com/specimen/Manufacturing+Consent) (NYT-style blackletter, Google Fonts)
+- **Masthead:** [Manufacturing Consent](https://fonts.google.com/specimen/Manufacturing+Consent)
 - **Headlines:** Playfair Display  
 - **Body:** Merriweather ≈ **10pt** print, tight leading  
 - **UI/small caps:** Libre Franklin  
@@ -103,6 +149,7 @@ src/
   data/
     feeds.ts              curated news RSS list
     feeds/comics.ts       comic RSS slots
+    samples/grok-brief-example.md
     types.ts
     edition-2026-09-09.ts placeholders / agenda / weather
     editions/latest.ts
@@ -111,14 +158,18 @@ src/
     site.ts               PAPER_NAME, PUBLIC_SITE_URL, answers URLs
     rss.ts                fetch/normalize
     comics.ts
+    calendar.ts           public ICS parse + merge
+    grokBrief.ts          Grok Automation paste parser + interleave helpers
     edition.ts            merge live → Edition
-    settings.ts           localStorage settings shape
+    settings.ts           localStorage settings + Grok store
     dateFilter.ts         America/Chicago today filter
   pages/
     index.astro
     answers/[date].astro
     api/rss.ts            POST settings-driven fetch
+    api/calendar.ts       POST multi-ICS → today’s agenda
   styles/newspaper.css    print rules are authoritative
+public/samples/           served sample brief for Settings “Load sample”
 ```
 
 ## License / personal use

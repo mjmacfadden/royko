@@ -24,7 +24,6 @@ export async function buildLiveEdition(base: Edition): Promise<{
     editionDate,
   });
 
-  // If today-filter wiped a section, refetch without today filter for that build snapshot
   const needFallback =
     !feeds.news.length && !feeds.businessTech.length && !feeds.sports.length && !feeds.lead.length;
   if (needFallback) {

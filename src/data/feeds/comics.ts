@@ -11,7 +11,7 @@ export interface ComicFeedConfig {
   url: string;
 }
 
-/** Two daily slots for the puzzles page. */
+/** Daily slots for the puzzles page (cap display at MAX_COMICS_ON_PAGE). */
 export const COMIC_FEEDS: ComicFeedConfig[] = [
   {
     id: 'xkcd',
@@ -25,4 +25,15 @@ export const COMIC_FEEDS: ComicFeedConfig[] = [
     credit: 'Zach Weinersmith',
     url: 'https://www.smbc-comics.com/comic/rss',
   },
+  {
+    id: 'oatmeal',
+    title: 'The Oatmeal',
+    credit: 'Matthew Inman',
+    url: 'https://theoatmeal.com/feed/rss',
+  },
 ];
+
+/** Keep print layout packed — never show more than this many strips. */
+export const MAX_COMICS_ON_PAGE = 3;
+
+export const DEFAULT_ENABLED_COMIC_IDS = COMIC_FEEDS.map((f) => f.id);
