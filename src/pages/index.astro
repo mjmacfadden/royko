@@ -72,12 +72,13 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
     <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
       <h2>Paste Grok Automation brief</h2>
-      <p class="settings-help">Markdown with <code>##</code> sections — interleaves with RSS on the paper.</p>
+      <p class="settings-help">Markdown with <code>##</code> sections and <code>**Headlines**</code> — interleaves with RSS as Brief cards (never a plain-text dump).</p>
       <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
         <button type="button" id="grok-paste-close">Close</button>
       </div>
+      <p class="settings-help" id="grok-paste-status" aria-live="polite"></p>
     </aside>
 
     <main class="newspaper-shell" id="newspaper">
@@ -306,7 +307,13 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         </section>`;
       }
 
-      function renderLead(story: any, grokLede?: string | null, grokRoundupParas?: string[]) {
+      /** Pass clearRoundup=true to drop SSR/prior brief roundup (failed/cleared paste). */
+      function renderLead(
+        story: any,
+        grokLede?: string | null,
+        grokRoundupParas?: string[],
+        clearRoundup = false,
+      ) {
         const root = document.querySelector('[data-live-lead]');
         if (!root || !story) return;
         let roundupHtml = '';
@@ -321,7 +328,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
             <h3 style="font-family: var(--serif-display); font-size: 1.05rem; margin: 0 0 0.25rem;">From the Automation</h3>
             ${paras.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}
           </aside>`;
-        } else {
+        } else if (!clearRoundup) {
           const existing = root.querySelector('.roundup-box');
           if (existing) roundupHtml = existing.outerHTML;
         }
@@ -395,7 +402,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         const lead = rss.lead?.[0] || rss.news?.[0] || bootstrap.lead;
 
         if (!grok) {
-          if (lead) renderLead(lead);
+          if (lead) renderLead(lead, null, [], true);
           renderAlso(alsoRss.slice(0, 5));
           renderColumn('[data-live-news]', 'News', newsRss.slice(0, 5));
           renderColumn('[data-live-biz]', 'Business · Tech', bizRss.slice(0, 5));
@@ -492,16 +499,7 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         }
       }
 
-      function applyGrokText(text: string) {
-        const editionDate = document.body.dataset.editionDate || '';
-        const trimmed = text.trim();
-        if (!trimmed) {
-          clearGrokBrief();
-          lastGrok = null;
-        } else {
-          saveGrokBrief(trimmed, editionDate);
-          lastGrok = parseGrokBrief(trimmed);
-        }
+      function ensureRssBootstrap() {
         if (!lastRss) {
           lastRss = {
             news: bootstrap.news || [],
@@ -511,13 +509,54 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
             alsoToday: bootstrap.alsoToday || [],
           };
         }
-        composeEdition(lastRss, lastGrok);
-        const st = document.getElementById('grok-brief-status');
-        if (st) {
-          st.textContent = lastGrok
-            ? `Brief saved · ${lastGrok.sections.length} sections · ${grokItemsAsStories(lastGrok).length} items`
-            : 'Brief cleared';
+      }
+
+      function setGrokStatus(msg: string, isError = false) {
+        for (const id of ['grok-brief-status', 'grok-paste-status']) {
+          const st = document.getElementById(id);
+          if (st) {
+            st.textContent = msg;
+            st.style.color = isError ? '#8b1a1a' : '';
+          }
         }
+      }
+
+      function applyGrokText(text: string) {
+        const editionDate = document.body.dataset.editionDate || '';
+        const trimmed = text.trim();
+        ensureRssBootstrap();
+
+        if (!trimmed) {
+          clearGrokBrief();
+          lastGrok = null;
+          composeEdition(lastRss, null);
+          setGrokStatus('Brief cleared');
+          showPage(1);
+          return;
+        }
+
+        saveGrokBrief(trimmed, editionDate);
+        const parsed = parseGrokBrief(trimmed);
+
+        if (!parsed.structured) {
+          // Keep paste in storage so Mike can fix it, but do not dump raw onto the paper
+          lastGrok = null;
+          composeEdition(lastRss, null);
+          setGrokStatus(
+            parsed.warning || 'Paste needs markdown ## sections',
+            true,
+          );
+          showPage(1);
+          return;
+        }
+
+        lastGrok = parsed;
+        composeEdition(lastRss, lastGrok);
+        const n = grokItemsAsStories(lastGrok).length;
+        setGrokStatus(
+          `Brief composed · ${lastGrok.sections.length} sections · ${n} stories interleaved with RSS`,
+        );
+        showPage(1);
       }
 
       function renderCustomList() {
@@ -704,10 +743,6 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
 
       applyWeather(settings.zip);
       applyComicVisibility(settings);
-      const storedGrok = loadGrokBrief();
-      if (storedGrok?.text) {
-        lastGrok = parseGrokBrief(storedGrok.text);
-      }
       lastRss = {
         news: bootstrap.news || [],
         businessTech: bootstrap.businessTech || [],
@@ -715,7 +750,19 @@ const comicCatalog = COMIC_FEEDS.map((c) => ({ id: c.id, title: c.title }));
         lead: bootstrap.lead ? [bootstrap.lead] : [],
         alsoToday: bootstrap.alsoToday || [],
       };
-      if (lastGrok) composeEdition(lastRss, lastGrok);
+      const storedGrok = loadGrokBrief();
+      if (storedGrok?.text) {
+        const parsed = parseGrokBrief(storedGrok.text);
+        if (parsed.structured) {
+          lastGrok = parsed;
+          composeEdition(lastRss, lastGrok);
+        } else {
+          lastGrok = null;
+          // Leave RSS as bootstrap; surface warning quietly in status if settings open later
+          const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+          if (ta) ta.value = storedGrok.text;
+        }
+      }
 
       const defaults = defaultSettings();
       const differs =

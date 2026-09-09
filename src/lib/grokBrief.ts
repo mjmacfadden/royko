@@ -38,6 +38,10 @@ export interface ParsedGrokBrief {
   footer: string | null;
   sections: GrokSection[];
   raw: string;
+  /** True when ## / ** structure was found and stories/sections extracted. */
+  structured: boolean;
+  /** Human-readable parse issue (e.g. missing markdown). */
+  warning: string | null;
 }
 
 function classifyHeading(heading: string): GrokSectionKind {
@@ -53,6 +57,18 @@ function classifyHeading(heading: string): GrokSectionKind {
 
 function stripBoldMarkers(s: string): string {
   return s.replace(/\*\*/g, '').trim();
+}
+
+/** Normalize smart quotes, NBSP, Windows newlines before parse. */
+export function normalizeBriefText(raw: string): string {
+  return (raw || '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[\u2018\u2019\u201a\u201b]/g, "'")
+    .replace(/[\u201c\u201d\u201e\u201f]/g, '"')
+    .replace(/[\u2013\u2014]/g, '—')
+    .trim();
 }
 
 function isSourceLine(line: string): string | null {
@@ -72,42 +88,123 @@ function isBullet(line: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+/**
+ * ## headings — allow missing space, extra #s (###), trailing hashes.
+ * Reject single # (too ambiguous with plain text).
+ */
 function isHeading(line: string): string | null {
-  const m = line.match(/^##\s+(.+)$/);
-  return m ? m[1].trim() : null;
-}
-
-/** **Headline** alone on a line (or almost alone). */
-function isHeadlineLine(line: string): string | null {
   const t = line.trim();
-  const m = t.match(/^\*\*(.+?)\*\*\s*$/);
+  // ##Heading / ## Heading / ### Heading / ## Heading ##
+  const m = t.match(/^#{2,6}\s*(.+?)(?:\s*#*)?$/);
   if (!m) return null;
-  const inner = m[1].trim();
-  // Title line is also bold — handled separately
-  if (/^the daily mike$/i.test(inner)) return null;
-  return inner;
+  const inner = m[1].replace(/#+\s*$/, '').trim();
+  if (!inner) return null;
+  // Don't treat a lone bold title as a heading
+  if (/^\*\*.+\*\*$/.test(inner) && /^the daily mike$/i.test(stripBoldMarkers(inner))) {
+    return null;
+  }
+  return stripBoldMarkers(inner);
 }
 
 /**
- * Parse raw Grok Automation paste into structured sections + story items.
+ * **Headline** alone on a line, OR **Headline** followed by body on same line.
+ * Returns [headline, optionalSameLineBody].
  */
-export function parseGrokBrief(raw: string): ParsedGrokBrief {
-  const text = (raw || '').replace(/\r\n/g, '\n').trim();
-  const empty: ParsedGrokBrief = {
+function isHeadlineLine(line: string): { headline: string; rest: string } | null {
+  const t = line.trim();
+  // Full-line bold
+  let m = t.match(/^\*\*(.+?)\*\*\s*$/);
+  if (m) {
+    const inner = m[1].trim();
+    if (/^the daily mike$/i.test(inner)) return null;
+    return { headline: inner, rest: '' };
+  }
+  // **Headline** then more text on same line
+  m = t.match(/^\*\*(.+?)\*\*\s+(.+)$/);
+  if (m) {
+    const inner = m[1].trim();
+    if (/^the daily mike$/i.test(inner)) return null;
+    // Avoid treating **bold** mid-sentence as headline if too long
+    if (inner.length > 140) return null;
+    return { headline: inner, rest: m[2].trim() };
+  }
+  return null;
+}
+
+/** Known section titles when paste lost ## markers. */
+const BARE_SECTION_RE =
+  /^(weather(?:\s*[—–-].*)?|national(?:\s*&\s*world)?|world|united states(?:\s*\/\s*illinois(?:\s*\/\s*chicago)?)?|illinois(?:\s*\/\s*chicago)?|chicago|local|sports|markets|business(?:\s*[·•]\s*tech)?|what to watch(?:\s+today)?)$/i;
+
+function isBareSectionHeading(line: string): string | null {
+  const t = stripBoldMarkers(line.trim());
+  if (!t || t.length > 80) return null;
+  if (BARE_SECTION_RE.test(t)) return t;
+  return null;
+}
+
+/**
+ * Light heuristic when markdown was stripped: short Title-ish lines
+ * followed by longer prose become headlines.
+ */
+function heuristicItemsFromParagraphs(paras: string[]): GrokStoryItem[] {
+  const items: GrokStoryItem[] = [];
+  let i = 0;
+  while (i < paras.length) {
+    const line = paras[i];
+    const next = paras[i + 1];
+    const words = line.split(/\s+/).length;
+    const looksLikeHeadline =
+      line.length <= 120 &&
+      words >= 3 &&
+      words <= 16 &&
+      !/[.!?]$/.test(line) &&
+      !isSourceLine(line) &&
+      !isFooter(line) &&
+      next &&
+      next.length > line.length * 0.6;
+    if (looksLikeHeadline) {
+      let body = next;
+      let source: string | undefined;
+      i += 2;
+      if (i < paras.length) {
+        const src = isSourceLine(paras[i]);
+        if (src) {
+          source = src;
+          i++;
+        }
+      }
+      items.push({ headline: line, body, source });
+      continue;
+    }
+    i++;
+  }
+  return items;
+}
+
+function emptyParsed(text: string, warning: string | null = null): ParsedGrokBrief {
+  return {
     title: null,
     dateLine: null,
     lede: null,
     footer: null,
     sections: [],
     raw: text,
+    structured: false,
+    warning,
   };
-  if (!text) return empty;
+}
+
+/**
+ * Parse raw Grok Automation paste into structured sections + story items.
+ */
+export function parseGrokBrief(raw: string): ParsedGrokBrief {
+  const text = normalizeBriefText(raw);
+  if (!text) return emptyParsed('');
 
   const lines = text.split('\n');
   let title: string | null = null;
   let dateLine: string | null = null;
   let footer: string | null = null;
-  const preHeading: string[] = [];
   const sections: GrokSection[] = [];
 
   let i = 0;
@@ -124,16 +221,27 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   while (i < lines.length && !lines[i].trim()) i++;
 
   // Date line (before first ##)
-  if (i < lines.length && !isHeading(lines[i]) && /20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|america\/chicago|\bCT\b/i.test(lines[i])) {
+  if (
+    i < lines.length &&
+    !isHeading(lines[i]) &&
+    !isBareSectionHeading(lines[i]) &&
+    /20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|america\/chicago|\bCT\b/i.test(
+      lines[i],
+    )
+  ) {
     dateLine = lines[i].trim();
     i++;
   }
 
   while (i < lines.length && !lines[i].trim()) i++;
 
-  // Lede / pre-heading paragraphs until first ##
+  // Lede / pre-heading paragraphs until first section heading
   const ledeParts: string[] = [];
-  while (i < lines.length && !isHeading(lines[i])) {
+  while (
+    i < lines.length &&
+    !isHeading(lines[i]) &&
+    !isBareSectionHeading(lines[i])
+  ) {
     const line = lines[i];
     if (isFooter(line)) {
       footer = line.trim();
@@ -143,10 +251,15 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     if (line.trim()) ledeParts.push(line.trim());
     i++;
   }
-  const lede = ledeParts.length ? ledeParts.join(' ') : null;
+  // Cap lede — never dump the whole paste into the roundup box
+  let lede = ledeParts.length ? ledeParts.join(' ') : null;
+  if (lede && lede.length > 600) {
+    lede = lede.slice(0, 597).trimEnd() + '…';
+  }
 
   let current: GrokSection | null = null;
   let pendingItem: GrokStoryItem | null = null;
+  let sawMarkdownHeading = false;
 
   const flushItem = () => {
     if (current && pendingItem) {
@@ -181,12 +294,21 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
     const heading = isHeading(trimmed);
     if (heading) {
+      sawMarkdownHeading = true;
       startSection(heading);
       continue;
     }
 
+    const bare = isBareSectionHeading(trimmed);
+    if (bare) {
+      startSection(bare);
+      continue;
+    }
+
     if (!current) {
-      preHeading.push(trimmed);
+      // Stray pre-section line — fold into lede if still short
+      if (!lede) lede = trimmed;
+      else if (lede.length < 400) lede = `${lede} ${trimmed}`;
       continue;
     }
 
@@ -200,7 +322,7 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     const hl = isHeadlineLine(trimmed);
     if (hl) {
       flushItem();
-      pendingItem = { headline: hl, body: '' };
+      pendingItem = { headline: hl.headline, body: hl.rest || '' };
       continue;
     }
 
@@ -221,18 +343,63 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   }
   flushItem();
 
-  // If no ## sections, treat whole body as one "other" section of paragraphs
-  if (!sections.length && (lede || text)) {
-    sections.push({
-      heading: 'Brief',
-      kind: 'other',
-      paragraphs: lede ? [lede] : text.split(/\n\n+/).map((p) => p.trim()).filter(Boolean),
-      items: [],
-      bullets: [],
-    });
+  // Heuristic: sections that only have paragraphs (lost **) → try headline pairs
+  for (const sec of sections) {
+    if (sec.items.length === 0 && sec.paragraphs.length >= 2 && sec.kind !== 'weather' && sec.kind !== 'watch') {
+      const guessed = heuristicItemsFromParagraphs(sec.paragraphs);
+      if (guessed.length) {
+        sec.items = guessed;
+        sec.paragraphs = [];
+      }
+    }
   }
 
-  return { title, dateLine, lede, footer, sections, raw: text };
+  const storyCount = sections.reduce((n, s) => n + s.items.length, 0);
+  const hasUseful =
+    storyCount > 0 ||
+    sections.some((s) => s.kind === 'weather' && s.paragraphs.length) ||
+    sections.some((s) => s.kind === 'watch' && s.bullets.length);
+
+  // No sections at all — do NOT dump raw body as a fake "Brief" paragraph section
+  if (!sections.length) {
+    return {
+      title,
+      dateLine,
+      lede: null,
+      footer,
+      sections: [],
+      raw: text,
+      structured: false,
+      warning: 'Paste needs markdown ## sections (and **Headlines**). Raw text was not dumped onto the paper.',
+    };
+  }
+
+  // Sections found but no stories / weather / watch content
+  if (!hasUseful) {
+    return {
+      title,
+      dateLine,
+      lede: sawMarkdownHeading ? lede : null,
+      footer,
+      sections,
+      raw: text,
+      structured: false,
+      warning: sawMarkdownHeading
+        ? 'Found ## sections but no **Headline** stories. Use **Headline** on its own line, then the deck.'
+        : 'Paste needs markdown ## sections (and **Headlines**). Could not structure this paste.',
+    };
+  }
+
+  return {
+    title,
+    dateLine,
+    lede,
+    footer,
+    sections,
+    raw: text,
+    structured: true,
+    warning: null,
+  };
 }
 
 /** Map section kind → newspaper column key for interleave. */
