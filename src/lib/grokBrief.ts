@@ -1,10 +1,15 @@
 /**
  * Parse Mike's Grok Automation morning brief.
- * Canonical patterns:
- *   **The Daily Mike** title, date line, optional lede
+ * Canonical paste dialect:
+ *   **The Daily Mike**
+ *   date line (+ optional America/Chicago line)
+ *   optional lede
  *   ## Section headers
- *   **Headline** + prose (+ optional Named source / Source: lines)
+ *   ***Headline***  (prefer triple-asterisk; **Headline** still accepted)
+ *   **byline/source**  (optional, alone on the next line)
+ *   plain-text body paragraphs (no italic *wrappers* required)
  *   - bullets under "What to watch today"
+ *   Compiled … footer
  */
 
 export type GrokSectionKind =
@@ -38,7 +43,7 @@ export interface ParsedGrokBrief {
   footer: string | null;
   sections: GrokSection[];
   raw: string;
-  /** True when ## / ** structure was found and stories/sections extracted. */
+  /** True when ## / headline structure was found and stories/sections extracted. */
   structured: boolean;
   /** Human-readable parse issue (e.g. missing markdown). */
   warning: string | null;
@@ -107,28 +112,68 @@ function isHeading(line: string): string | null {
 }
 
 /**
- * **Headline** alone on a line, OR **Headline** followed by body on same line.
+ * Prefer ***Headline*** (triple asterisk). Fall back to **Headline** (legacy).
+ * When both patterns could match, *** wins.
  * Returns [headline, optionalSameLineBody].
  */
 function isHeadlineLine(line: string): { headline: string; rest: string } | null {
   const t = line.trim();
-  // Full-line bold
-  let m = t.match(/^\*\*(.+?)\*\*\s*$/);
+
+  // ***Headline*** alone
+  let m = t.match(/^\*\*\*(.+?)\*\*\*\s*$/);
   if (m) {
     const inner = m[1].trim();
-    if (/^the daily mike$/i.test(inner)) return null;
+    if (!inner || /^the daily mike$/i.test(inner)) return null;
     return { headline: inner, rest: '' };
   }
-  // **Headline** then more text on same line
+  // ***Headline*** then more text on same line
+  m = t.match(/^\*\*\*(.+?)\*\*\*\s+(.+)$/);
+  if (m) {
+    const inner = m[1].trim();
+    if (!inner || /^the daily mike$/i.test(inner)) return null;
+    if (inner.length > 140) return null;
+    return { headline: inner, rest: m[2].trim() };
+  }
+
+  // Incomplete / odd triple — don't let ** fallback mangle it
+  if (/^\*\*\*/.test(t)) return null;
+
+  // Legacy: **Headline** alone
+  m = t.match(/^\*\*(.+?)\*\*\s*$/);
+  if (m) {
+    const inner = m[1].trim();
+    if (!inner || /^the daily mike$/i.test(inner)) return null;
+    return { headline: inner, rest: '' };
+  }
+  // Legacy: **Headline** then more text on same line
   m = t.match(/^\*\*(.+?)\*\*\s+(.+)$/);
   if (m) {
     const inner = m[1].trim();
-    if (/^the daily mike$/i.test(inner)) return null;
-    // Avoid treating **bold** mid-sentence as headline if too long
+    if (!inner || /^the daily mike$/i.test(inner)) return null;
     if (inner.length > 140) return null;
     return { headline: inner, rest: m[2].trim() };
   }
   return null;
+}
+
+/**
+ * **byline/source** alone on a line (double asterisk only — not ***).
+ * Used immediately after a headline. Also unwraps "Named source:" / "Source:" inside bold.
+ */
+function isBylineLine(line: string): string | null {
+  const t = line.trim();
+  if (/^\*\*\*/.test(t)) return null;
+  const m = t.match(/^\*\*(.+?)\*\*\s*$/);
+  if (!m) return null;
+  const inner = m[1].trim();
+  if (!inner || /^the daily mike$/i.test(inner)) return null;
+  const named = isSourceLine(inner);
+  return named ?? inner;
+}
+
+function isTimezoneLine(line: string): boolean {
+  const t = line.trim();
+  return /^(America\/Chicago|US\/Central|[A-Za-z]+\/[A-Za-z_]+)$/i.test(t);
 }
 
 /** Known section titles when paste lost ## markers. */
@@ -235,6 +280,15 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   while (i < lines.length && !lines[i].trim()) i++;
 
+  // Optional standalone timezone line (e.g. America/Chicago)
+  if (i < lines.length && isTimezoneLine(lines[i])) {
+    const tz = lines[i].trim();
+    dateLine = dateLine ? `${dateLine} · ${tz}` : tz;
+    i++;
+  }
+
+  while (i < lines.length && !lines[i].trim()) i++;
+
   // Lede / pre-heading paragraphs until first section heading
   const ledeParts: string[] = [];
   while (
@@ -319,6 +373,15 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
+    // **byline** immediately after a headline (body still empty) — not a new story
+    if (pendingItem && !pendingItem.body.trim() && !pendingItem.source) {
+      const byline = isBylineLine(trimmed);
+      if (byline) {
+        pendingItem.source = byline;
+        continue;
+      }
+    }
+
     const hl = isHeadlineLine(trimmed);
     if (hl) {
       flushItem();
@@ -329,7 +392,12 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     const src = isSourceLine(trimmed);
     if (src && pendingItem) {
       pendingItem.source = src;
-      flushItem();
+      // Legacy pastes put Source: after the body — end the story.
+      // New dialect puts byline before body (handled above); plain Source:
+      // with empty body stays open for following paragraphs.
+      if (pendingItem.body.trim()) {
+        flushItem();
+      }
       continue;
     }
 
@@ -370,7 +438,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       sections: [],
       raw: text,
       structured: false,
-      warning: 'Paste needs markdown ## sections (and **Headlines**). Raw text was not dumped onto the paper.',
+      warning:
+        'Paste needs markdown ## sections (and ***Headlines***). Raw text was not dumped onto the paper.',
     };
   }
 
@@ -385,8 +454,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       raw: text,
       structured: false,
       warning: sawMarkdownHeading
-        ? 'Found ## sections but no **Headline** stories. Use **Headline** on its own line, then the deck.'
-        : 'Paste needs markdown ## sections (and **Headlines**). Could not structure this paste.',
+        ? 'Found ## sections but no ***Headline*** stories. Use ***Headline*** on its own line, optional **byline**, then plain body.'
+        : 'Paste needs markdown ## sections (and ***Headlines***). Could not structure this paste.',
     };
   }
 

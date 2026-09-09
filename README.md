@@ -65,17 +65,48 @@ Prefs persist in `localStorage` (`daily-mike-settings-v1`). Grok paste: `daily-m
 
 ### Grok Automation brief
 
-Paste the morning Automation output (canonical shape):
+Paste the morning Automation output. Parser: `src/lib/grokBrief.ts` · sample: `src/data/samples/grok-brief-example.md` (also `/samples/grok-brief-example.md`).
 
-- Title: `**The Daily Mike**`
-- Date line + `America/Chicago`
-- Optional lede before the first `##`
-- Sections: `## Weather — …`, `## National & World`, `## United States / Illinois / Chicago`, `## Sports`, `## Markets`, `## What to watch today`
-- Items: `**Headline**` + prose + optional `Named source:` / `Source:` lines
-- Bullets under What to watch; footer like `Compiled 5:50 a.m. CT…`
+#### Paste format
 
-Parser: `src/lib/grokBrief.ts`  
-Sample fixture: `src/data/samples/grok-brief-example.md` (also `/samples/grok-brief-example.md`)
+Copy this into your Grok system prompt (or paste a matching brief into Settings / Paste brief):
+
+```
+**The Daily Mike**
+Wednesday, September 9, 2026
+America/Chicago
+
+Optional lede paragraph…
+
+## National & World
+
+***Headline here***
+**Named source: AP, Sept. 8**
+Story body paragraph(s) in plain text (no required italics).
+
+***Another headline***
+**byline or source**
+More body…
+
+## Weather — Northbrook, Illinois
+Prose paragraphs (no headlines required).
+
+## What to watch today
+- bullet one
+- bullet two
+
+Compiled 5:50 a.m. CT from 28 sources.
+```
+
+**Rules**
+
+1. `## Section` = section header (kind classification unchanged: weather / national / local / sports / markets / watch).
+2. `***Headline***` alone on a line (or headline then body after closing `***`) = story headline — prefer **triple-asterisk** over double.
+3. `**byline/source**` alone on the line immediately after a headline = byline/source. Plain `Named source:` / `Source:` lines still work.
+4. Plain paragraphs = story body until the next `***` headline or `##` section. **Do not** wrap body in italic `*…*` (multi-paragraph italics break).
+5. Backward compatible: older `**Headline**` alone-on-line pastes still parse; when both possible, `***` wins for headlines.
+
+Typical sections: `## Weather — …`, `## National & World`, `## United States / Illinois / Chicago`, `## Sports`, `## Markets`, `## What to watch today`.
 
 **How it maps onto the paper**
 
