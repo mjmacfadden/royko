@@ -567,6 +567,72 @@ function advanceColumn(host: HTMLElement, state: SheetState): SheetState {
   return createSheet(host, state.pageNumber + 1, false);
 }
 
+export function fitGlanceBox(box: HTMLElement | null) {
+  if (!box) return;
+  const list = box.querySelector<HTMLElement>('.glance-list');
+  if (!list) return;
+
+  const allLis = Array.from(list.querySelectorAll<HTMLLIElement>('li'));
+  if (!allLis.length) return;
+
+  // If container fits cleanly, no truncation needed
+  if (box.scrollHeight <= box.clientHeight + 1) {
+    return;
+  }
+
+  let lis = [...allLis];
+  let hadTruncation = false;
+
+  // 1. Remove overflowing full list items from the end
+  while (lis.length > 1 && box.scrollHeight > box.clientHeight + 1) {
+    const last = lis.pop()!;
+    last.remove();
+    hadTruncation = true;
+  }
+
+  // 2. If still overflowing or if items were removed, ensure last line ends with ...
+  const lastLi = lis[lis.length - 1];
+  if (lastLi) {
+    const text = (lastLi.textContent || '').replace(/\s*\.{3}$/, '').trim();
+    const words = text.split(/\s+/);
+    let lo = 0;
+    let hi = words.length;
+    let bestText = text + '...';
+
+    while (lo <= hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const candidate = words.slice(0, mid).join(' ') + (mid > 0 ? '...' : '');
+      lastLi.textContent = candidate;
+      if (box.scrollHeight <= box.clientHeight + 1) {
+        bestText = candidate;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+
+    if (box.scrollHeight > box.clientHeight + 1 && words.length) {
+      const firstWord = words[0];
+      let cLo = 0;
+      let cHi = firstWord.length;
+      bestText = '...';
+      while (cLo <= cHi) {
+        const cMid = Math.floor((cLo + cHi) / 2);
+        const candidate = firstWord.slice(0, cMid) + '...';
+        lastLi.textContent = candidate;
+        if (box.scrollHeight <= box.clientHeight + 1) {
+          bestText = candidate;
+          cLo = cMid + 1;
+        } else {
+          cHi = cMid - 1;
+        }
+      }
+    }
+
+    lastLi.textContent = bestText;
+  }
+}
+
 /**
  * Paginate the live `#edition-document` into visible letter `.page-sheet` pages.
  * Hides the continuous source edition (kept for cloning).
@@ -589,6 +655,10 @@ export async function paginateEdition(): Promise<PaginateResult> {
   const bannerHost = state.sheet.querySelector('.page-sheet-banner');
   if (bannerHost) {
     banner.forEach((unit) => bannerHost.appendChild(unit));
+    const glanceBox = state.sheet.querySelector<HTMLElement>('.grok-glance-box');
+    if (glanceBox) {
+      fitGlanceBox(glanceBox);
+    }
   }
 
   // Force layout so column heights account for banner.

@@ -2,9 +2,22 @@ import type { Edition, RssStory, ComicStripData } from '../data/types';
 import { fetchAllFeeds } from './rss';
 import { fetchComics } from './comics';
 import { chicagoDateKey } from './dateFilter';
+import { getBirthdaysForDate } from '../data/birthdays';
 
 function take<T>(arr: T[], n: number): T[] {
   return arr.slice(0, n);
+}
+
+export function formatChicagoDateDisplay(isoDate: string): string {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(dt);
 }
 
 const EMPTY_LEAD: RssStory = {
@@ -25,14 +38,16 @@ const EMPTY_LEAD: RssStory = {
  */
 export async function buildLiveEdition(
   base: Edition,
-  opts: { rssEnabled?: boolean } = {},
+  opts: { rssEnabled?: boolean; date?: string } = {},
 ): Promise<{
   edition: Edition;
   feedStatus: { ok: string[]; failed: { id: string; error: string }[] };
   comicsLive: boolean;
   rssEnabled: boolean;
 }> {
-  const editionDate = base.date || chicagoDateKey();
+  const editionDate = opts.date || chicagoDateKey();
+  const dateDisplay = formatChicagoDateDisplay(editionDate);
+  const birthdays = getBirthdaysForDate(editionDate);
   const rssEnabled = opts.rssEnabled === true;
 
   const comics = await fetchComics();
@@ -48,6 +63,9 @@ export async function buildLiveEdition(
   if (!rssEnabled) {
     const edition: Edition = {
       ...base,
+      date: editionDate,
+      dateDisplay,
+      birthdays,
       leadStory: EMPTY_LEAD,
       alsoToday: [],
       news: [],
@@ -91,6 +109,9 @@ export async function buildLiveEdition(
 
   const edition: Edition = {
     ...base,
+    date: editionDate,
+    dateDisplay,
+    birthdays,
     leadStory,
     alsoToday,
     news,

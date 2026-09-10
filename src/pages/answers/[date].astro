@@ -1,17 +1,12 @@
 ---
-export const prerender = true;
+export const prerender = false;
 
 import '../../styles/newspaper.css';
-import { latestEdition } from '../../data/editions/latest';
 import { puzzlesForDate } from '../../data/puzzles';
 import { PAPER_NAME_UPPER, PAPER_TAGLINE } from '../../lib/site';
 
-export function getStaticPaths() {
-  return [{ params: { date: latestEdition.date } }];
-}
-
 const { date } = Astro.params;
-const editionDate = new Date(`${date}T12:00:00`);
+const editionDate = date ? new Date(`${date}T12:00:00`) : new Date();
 const puzzles = puzzlesForDate(editionDate);
 const { crossword, jumble, trivia } = puzzles;
 

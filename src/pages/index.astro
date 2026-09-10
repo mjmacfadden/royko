@@ -1,5 +1,5 @@
 ---
-export const prerender = true;
+export const prerender = false;
 
 import '../styles/newspaper.css';
 import { latestEdition } from '../data/editions/latest';
@@ -102,6 +102,7 @@ const hasWireStories =
             <aside class="front-rail">
               <div data-grok-weather></div>
               <Agenda items={edition.agenda} />
+              <div data-grok-glance></div>
               <div data-grok-watch></div>
             </aside>
             <div class="front-lead" data-live-lead>
@@ -625,6 +626,24 @@ const hasWireStories =
         }
       }
 
+      function renderGrokGlance(parsed: ParsedGrokBrief | null) {
+        const root = document.querySelector('[data-grok-glance]');
+        if (!root) return;
+        const glance = parsed?.sections.find((s) => s.kind === 'glance');
+        const items = glance ? (glance.bullets.length ? glance.bullets : glance.paragraphs) : [];
+        if (!glance || !items.length) {
+          root.innerHTML = '';
+          return;
+        }
+        const heading = glance.heading && glance.heading.trim() ? glance.heading : 'At a Glance';
+        root.innerHTML = `<aside class="grok-glance-box brief-item">
+          <h2 class="section-label">${escapeHtml(heading)}</h2>
+          <ul class="glance-list">
+            ${items.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
+          </ul>
+        </aside>`;
+      }
+
       function renderGrokWatch(parsed: ParsedGrokBrief | null) {
         const root = document.querySelector('[data-grok-watch]');
         if (!root) return;
@@ -669,6 +688,7 @@ const hasWireStories =
             renderColumn('[data-live-sports]', 'Sports', []);
           }
           renderGrokWeather(null);
+          renderGrokGlance(null);
           renderGrokWatch(null);
           schedulePaginate();
           return;
@@ -694,6 +714,7 @@ const hasWireStories =
 
         renderLead(leadFromGrok || leadRss, grok.lede, []);
         renderGrokWeather(grok);
+        renderGrokGlance(grok);
         renderGrokWatch(grok);
 
         if (useRss) {

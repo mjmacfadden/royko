@@ -26,6 +26,7 @@ export type GrokSectionKind =
   | 'sports'
   | 'markets'
   | 'watch'
+  | 'glance'
   | 'other';
 
 export interface GrokStoryItem {
@@ -64,6 +65,7 @@ function classifyHeading(heading: string): GrokSectionKind {
   const h = heading.toLowerCase();
   if (/\bweather\b/.test(h)) return 'weather';
   if (/what to watch|to watch today|watch today|agenda/.test(h)) return 'watch';
+  if (/at a glance|quick hits|\bglance\b/.test(h)) return 'glance';
   if (/\bsports?\b/.test(h)) return 'sports';
   if (/\bmarkets?\b|business|tech\b/.test(h)) return 'markets';
   if (/illinois|chicago|united states|local|northbrook|metro/.test(h)) return 'local';
@@ -225,7 +227,7 @@ function isAtxHeadline(line: string): { headline: string; rest: string } | null 
 
 /** Known section titles when paste lost ## / *** markers. */
 const BARE_SECTION_RE =
-  /^(weather(?:\s*[—–-].*)?|national(?:\s*&\s*world)?|world|united states(?:\s*\/\s*illinois(?:\s*\/\s*chicago)?)?|illinois(?:\s*\/\s*chicago)?|chicago|local|sports|markets|business(?:\s*[·•]\s*tech)?|what to watch(?:\s+today)?)$/i;
+  /^(weather(?:\s*[—–-].*)?|national(?:\s*&\s*world)?|world|united states(?:\s*\/\s*illinois(?:\s*\/\s*chicago)?)?|illinois(?:\s*\/\s*chicago)?|chicago|local|sports|markets|business(?:\s*[·•]\s*tech)?|what to watch(?:\s+today)?|at a glance|quick hits|glance)$/i;
 
 /** Extract inner text from a lone ***…*** line, or null. */
 function tripleAsteriskInner(line: string): string | null {
@@ -247,7 +249,7 @@ function looksLikeSectionTitle(inner: string): boolean {
   if (/[—\/]/.test(inner) && classifyHeading(inner) !== 'other') return true;
   if (
     /[—\/]/.test(inner) &&
-    /\b(weather|national|world|united states|illinois|chicago|sports|markets|watch)\b/i.test(
+    /\b(weather|national|world|united states|illinois|chicago|sports|markets|watch|glance)\b/i.test(
       inner,
     )
   ) {
@@ -630,6 +632,7 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       sec.paragraphs.length >= 2 &&
       sec.kind !== 'weather' &&
       sec.kind !== 'watch' &&
+      sec.kind !== 'glance' &&
       sec.kind !== 'markets'
     ) {
       const guessed = heuristicItemsFromParagraphs(sec.paragraphs);
@@ -654,7 +657,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   const hasUseful =
     storyCount > 0 ||
     sections.some((s) => s.kind === 'weather' && s.paragraphs.length) ||
-    sections.some((s) => s.kind === 'watch' && s.bullets.length);
+    sections.some((s) => s.kind === 'watch' && s.bullets.length) ||
+    sections.some((s) => s.kind === 'glance' && (s.bullets.length || s.paragraphs.length));
 
   if (!sections.length) {
     return {
