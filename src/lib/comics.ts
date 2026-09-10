@@ -104,6 +104,19 @@ function extractItems(doc: unknown): Record<string, unknown>[] {
   return [];
 }
 
+
+function pickPublishedAt(item: Record<string, unknown>): string | null {
+  const raw =
+    textOf(item.pubDate) ||
+    textOf(item.published) ||
+    textOf(item.updated) ||
+    textOf(item['dc:date']) ||
+    '';
+  if (!raw) return null;
+  const ms = Date.parse(raw);
+  return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
+}
+
 async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
@@ -130,6 +143,7 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
       .replace(/\s+/g, ' ')
       .trim()
       .slice(0, 180);
+    const publishedAt = pickPublishedAt(item);
     return {
       id: feed.id,
       title: feed.title,
@@ -138,6 +152,7 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
       imageUrl: imageUrl ?? null,
       link,
       live: Boolean(imageUrl || link),
+      publishedAt,
     };
   } finally {
     clearTimeout(timer);
@@ -153,6 +168,7 @@ function fallbackStrip(feed: ComicFeedConfig, msg: string): ComicStripData {
     imageUrl: null,
     link: feed.url.replace(/\/feed\/rss\/?$/, '/').replace(/\/rss\.xml$/, '/'),
     live: false,
+    publishedAt: null,
   };
 }
 
@@ -173,5 +189,13 @@ export async function fetchComics(enabledIds?: string[] | null): Promise<ComicSt
       out.push(fallbackStrip(feed, msg));
     }
   }
+  // Prefer live strips with newest pub dates; fall back to feed order.
+  out.sort((a, b) => {
+    const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
+    const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
+    if (tb !== ta) return tb - ta;
+    if (Boolean(b.live) !== Boolean(a.live)) return Number(Boolean(b.live)) - Number(Boolean(a.live));
+    return 0;
+  });
   return out.slice(0, MAX_COMICS_ON_PAGE);
 }

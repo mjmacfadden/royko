@@ -58,6 +58,8 @@ export interface ComicStripData {
   link?: string;
   /** True when fetched from a live feed. */
   live?: boolean;
+  /** Item pub date (ISO) when known — used to pick the most current strips. */
+  publishedAt?: string | null;
 }
 
 export interface HistoryItem {

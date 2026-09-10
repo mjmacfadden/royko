@@ -20,6 +20,7 @@ import JumblePuzzle from '../components/JumblePuzzle.astro';
 import SportsTrivia from '../components/SportsTrivia.astro';
 import ComicStrip from '../components/ComicStrip.astro';
 import TodayInHistory from '../components/TodayInHistory.astro';
+import Birthdays from '../components/Birthdays.astro';
 import AnswersQr from '../components/AnswersQr.astro';
 import SettingsPanel from '../components/SettingsPanel.astro';
 
@@ -75,16 +76,26 @@ const hasWireStories =
 
     <SettingsPanel />
 
-    <aside class="grok-paste-panel screen-only" id="grok-paste-panel" hidden>
-      <h2>Paste Grok Automation brief</h2>
-      <p class="settings-help">Canonical: <code>***Section***</code>, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body; images as <code>****https://image-url.jpg****</code> (optional duplicate in parens). Fills the paper (Grok is the news backbone). <code>##</code> / <code>***hed***</code> still accepted. Full dialect in README.</p>
-      <textarea id="grok-paste-quick" rows="12" placeholder="Paste morning brief here…"></textarea>
-      <div class="grok-brief-actions">
-        <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
-        <button type="button" id="grok-paste-close">Close</button>
-      </div>
-      <p class="settings-help" id="grok-paste-status" aria-live="polite"></p>
-    </aside>
+    <dialog class="grok-paste-dialog screen-only" id="grok-paste-dialog" aria-labelledby="grok-paste-title">
+      <form method="dialog" class="grok-paste-form" id="grok-paste-form">
+        <header class="grok-paste-header">
+          <h2 id="grok-paste-title">Paste Grok Automation brief</h2>
+          <button type="submit" class="grok-paste-x" value="cancel" aria-label="Close">×</button>
+        </header>
+        <p class="settings-help">
+          Canonical Markdown: <code>## Section</code>, <code>**Headline**</code> or <code>### Headline</code>,
+          <code>*Named source: …*</code>, plain body;
+          images <code>![alt](https://…)</code> (also <code>!(url)</code>).
+          Legacy <code>***</code> / <code>****url****</code> still work.
+        </p>
+        <textarea id="grok-paste-quick" rows="16" placeholder="## Lead Story&#10;&#10;**Headline**&#10;*Named source: Outlet, Date*&#10;Body…"></textarea>
+        <div class="grok-brief-actions">
+          <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
+          <button type="submit" value="cancel" id="grok-paste-close">Close</button>
+        </div>
+        <p class="settings-help" id="grok-paste-status" aria-live="polite"></p>
+      </form>
+    </dialog>
 
     <main class="newspaper-shell" id="newspaper">
       <!-- One continuous edition document — screen mirrors print packing -->
@@ -166,7 +177,11 @@ const hasWireStories =
             <span>Puzzles &amp; Features</span>
             <span>{edition.dateDisplay}</span>
           </header>
-          <div class="page3-features">
+          {/* Fixed last-page block — out of the 3-column news flow */}
+          <div class="page3-features" data-features-block>
+            <div class="comics-band" aria-label="Comics" data-live-comics>
+              {edition.comics.map((c) => <ComicStrip comic={c} />)}
+            </div>
             <div class="games-band" aria-label="Games">
               <div class="game-cell game-crossword">
                 <CrosswordPuzzle puzzle={puzzles.crossword} />
@@ -176,14 +191,18 @@ const hasWireStories =
               </div>
               <div class="game-cell game-trivia">
                 <SportsTrivia trivia={puzzles.trivia} />
-                <AnswersQr date={edition.date} />
-              </div>
-              <div class="game-cell game-history">
-                <TodayInHistory history={edition.todayInHistory} birthdays={edition.birthdays} />
               </div>
             </div>
-            <div class="comics-band" aria-label="Comics" data-live-comics>
-              {edition.comics.map((c) => <ComicStrip comic={c} />)}
+            <div class="features-meta-band" aria-label="History and answers">
+              <div class="feature-cell feature-history">
+                <TodayInHistory history={edition.todayInHistory} />
+              </div>
+              <div class="feature-cell feature-birthdays">
+                <Birthdays birthdays={edition.birthdays} />
+              </div>
+              <div class="feature-cell feature-qr">
+                <AnswersQr date={edition.date} />
+              </div>
             </div>
           </div>
           <footer class="page-folio edition-end-folio">
@@ -1092,37 +1111,39 @@ const hasWireStories =
         }
       });
 
-      const pastePanel = document.getElementById('grok-paste-panel');
+      const pasteDialog = document.getElementById('grok-paste-dialog') as HTMLDialogElement | null;
       document.getElementById('open-grok-paste')?.addEventListener('click', () => {
         const store = loadGrokBrief();
         const q = document.getElementById('grok-paste-quick') as HTMLTextAreaElement | null;
         if (q) q.value = store?.text || '';
-        pastePanel?.removeAttribute('hidden');
+        const status = document.getElementById('grok-paste-status');
+        if (status) status.textContent = '';
+        pasteDialog?.showModal();
+        q?.focus();
       });
-      document.getElementById('grok-paste-close')?.addEventListener('click', () => {
-        pastePanel?.setAttribute('hidden', '');
-      });
-      document.getElementById('grok-paste-apply')?.addEventListener('click', () => {
+      document.getElementById('grok-paste-apply')?.addEventListener('click', (e) => {
+        e.preventDefault();
         const q = document.getElementById('grok-paste-quick') as HTMLTextAreaElement | null;
         applyGrokText(q?.value || '');
         const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
         if (ta && q) ta.value = q.value;
-        pastePanel?.setAttribute('hidden', '');
+        pasteDialog?.close();
       });
 
       function applyComicVisibility(s: PaperSettings) {
         const enabled = new Set(s.enabledComicIds);
+        let shown = 0;
         document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box').forEach((box) => {
-          const id = box.dataset.comicId;
-          if (id) box.style.display = enabled.has(id) ? '' : 'none';
-          else {
+          let id = box.dataset.comicId || '';
+          if (!id) {
             const title = (box.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
             const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal' };
-            const cid = map[title];
-            if (cid) box.style.display = enabled.has(cid) ? '' : 'none';
+            id = map[title] || '';
           }
+          const want = Boolean(id && enabled.has(id) && shown < 2);
+          box.style.display = want ? '' : 'none';
+          if (want) shown += 1;
         });
-      
         schedulePaginate();
       }
 

@@ -11,7 +11,7 @@ export interface ComicFeedConfig {
   url: string;
 }
 
-/** Daily slots for the puzzles page (cap display at MAX_COMICS_ON_PAGE). */
+/** Comic feed catalog (display capped at MAX_COMICS_ON_PAGE = two most current). */
 export const COMIC_FEEDS: ComicFeedConfig[] = [
   {
     id: 'xkcd',
@@ -33,7 +33,7 @@ export const COMIC_FEEDS: ComicFeedConfig[] = [
   },
 ];
 
-/** Keep print layout packed — never show more than this many strips. */
-export const MAX_COMICS_ON_PAGE = 3;
+/** Last-page comics row: two strips side by side (most current by pub date). */
+export const MAX_COMICS_ON_PAGE = 2;
 
 export const DEFAULT_ENABLED_COMIC_IDS = COMIC_FEEDS.map((f) => f.id);

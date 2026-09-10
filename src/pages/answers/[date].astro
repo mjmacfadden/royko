@@ -44,9 +44,15 @@ const { crossword, jumble, trivia } = puzzles;
       </section>
 
       <section class="answers-section">
-        <h2>Sports trivia · {trivia.category}</h2>
-        <p class="answers-meta">{trivia.question}</p>
-        <p class="answers-value">{trivia.answer}</p>
+        <h2>Sports trivia</h2>
+        <ol class="answers-trivia-list">
+          {trivia.map((t) => (
+            <li>
+              <p class="answers-meta">{t.category} — {t.question}</p>
+              <p class="answers-value">{t.answer}</p>
+            </li>
+          ))}
+        </ol>
       </section>
 
       <section class="answers-section">

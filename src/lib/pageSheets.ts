@@ -64,6 +64,7 @@ function cloneClean(node: Element): Element {
 export function buildFlowUnits(editionEl: HTMLElement): {
   banner: HTMLElement[];
   columns: HTMLElement[];
+  features: HTMLElement | null;
 } {
   const liveClone = editionEl.cloneNode(true) as HTMLElement;
   liveClone.removeAttribute('id');
@@ -139,28 +140,14 @@ export function buildFlowUnits(editionEl: HTMLElement): {
     });
   });
 
-  const featuresHead = liveClone.querySelector('.edition-features .running-head');
-  if (featuresHead && hasPrintableContent(featuresHead)) {
-    columns.push(wrapUnit(cloneClean(featuresHead), 'sheet-features-heading'));
+  // Features stay out of the 3-column news flow — one full-width last-page block.
+  let features: HTMLElement | null = null;
+  const featuresBlock = liveClone.querySelector('.edition-features .page3-features');
+  if (featuresBlock && hasPrintableContent(featuresBlock)) {
+    features = cloneClean(featuresBlock) as HTMLElement;
   }
 
-  liveClone.querySelectorAll('.edition-features .game-cell').forEach((game) => {
-    if (!hasPrintableContent(game)) return;
-    columns.push(wrapUnit(cloneClean(game), 'sheet-game-unit'));
-  });
-
-  const comics = Array.from(liveClone.querySelectorAll('.edition-features .comic-box')).filter(
-    hasPrintableContent,
-  );
-  if (comics.length) {
-    const heading = document.createElement('h2');
-    heading.className = 'section-label sheet-generated-heading';
-    heading.textContent = 'Comics';
-    columns.push(wrapUnit(heading, 'sheet-section-heading'));
-    comics.forEach((comic) => columns.push(wrapUnit(cloneClean(comic), 'sheet-comic-unit')));
-  }
-
-  return { banner, columns };
+  return { banner, columns, features };
 }
 
 function overflows(el: HTMLElement): boolean {
@@ -647,7 +634,7 @@ export async function paginateEdition(): Promise<PaginateResult> {
 
   await waitForAssets(editionEl);
 
-  const { banner, columns: columnUnits } = buildFlowUnits(editionEl);
+  const { banner, columns: columnUnits, features } = buildFlowUnits(editionEl);
   const host = ensureHost(shell);
   host.innerHTML = '';
 
@@ -706,13 +693,40 @@ export async function paginateEdition(): Promise<PaginateResult> {
     state = advanceColumn(host, state);
   }
 
+  // Always place comics/games/history on a dedicated last page (bottom ~2/3).
+  if (features) {
+    const featState = createSheet(host, state.pageNumber + 1, false);
+    featState.sheet.classList.add('page-sheet--features');
+    const inner = featState.sheet.querySelector('.page-sheet-inner');
+    const cols = featState.sheet.querySelector('.page-sheet-columns');
+    if (cols) cols.remove();
+    if (inner) {
+      const wrap = document.createElement('div');
+      wrap.className = 'page-sheet-features';
+      const spacer = document.createElement('div');
+      spacer.className = 'page-sheet-features-spacer';
+      spacer.setAttribute('aria-hidden', 'true');
+      const body = document.createElement('div');
+      body.className = 'page-sheet-features-body';
+      body.appendChild(features);
+      wrap.appendChild(spacer);
+      wrap.appendChild(body);
+      const folio = inner.querySelector('.page-sheet-folio');
+      if (folio) inner.insertBefore(wrap, folio);
+      else inner.appendChild(wrap);
+    }
+    state = featState;
+  }
+
   // Drop trailing empty sheets (should not happen, but keep verify clean).
   Array.from(host.querySelectorAll('.page-sheet')).forEach((sheet) => {
     const cols = sheet.querySelectorAll('.page-col');
     const bannerEl = sheet.querySelector('.page-sheet-banner');
+    const featuresEl = sheet.querySelector('.page-sheet-features-body');
     const hasColContent = Array.from(cols).some((c) => c.children.length > 0);
     const hasBanner = Boolean(bannerEl && bannerEl.children.length > 0);
-    if (!hasColContent && !hasBanner && host.querySelectorAll('.page-sheet').length > 1) {
+    const hasFeatures = Boolean(featuresEl && featuresEl.children.length > 0);
+    if (!hasColContent && !hasBanner && !hasFeatures && host.querySelectorAll('.page-sheet').length > 1) {
       sheet.remove();
     }
   });

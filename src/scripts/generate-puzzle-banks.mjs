@@ -540,8 +540,10 @@ export const ${name}Bank: ${typeName}[] = ${JSON.stringify(data, null, 2)};
 
 const jumble = buildJumble();
 const trivia = buildTrivia();
-const crossword = buildCrossword();
 emitTs('jumble', 'JumbleEntry', jumble);
 emitTs('trivia', 'TriviaEntry', trivia);
-emitTs('crossword', 'CrosswordEntry', crossword, 'Mini 5×5 themed grids cycled across the bank.');
+// Crossword bank is generated separately (≥366 unique American minis):
+//   python3 src/scripts/crossword-gen/convert_ipuz_to_bank.py
+// (converts crossword-gen/ipuz-out → data/puzzles/crossword.ts)
+console.log('Skipped crossword.ts — use crossword-gen/convert_ipuz_to_bank.py');
 console.log('Done.');

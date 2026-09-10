@@ -1,0 +1,8 @@
+Wrote 400 puzzles (1-400) to ./ipuz-out
+Master seed: 20260910
+Fill attempts total: 439, extra retries beyond first try: 38, backtrack steps total: 625997
+Uniqueness collisions: 1 (checked against 0 pre-existing puzzle(s) in ./ipuz-out plus this batch)
+Wordlist sizes after filtering (min_score=80):
+  length 3: 632
+  length 4: 2150
+  length 5: 3864

@@ -1,0 +1,9 @@
+skip 277.ipuz: No clue available for LPS
+Wrote /Users/mmacfadden/Documents/GitHub/Royko/src/data/puzzles/crossword.ts (366 entries)
+clue sources: {'open': 2177, 'wn': 1111, 'crosse': 106, 'fallback': 266}
+unique grids: 366
+sample 01-01 blacks 3 clues 10
+  1A ODD: Peculiar
+  1D OXIDE: Binary chemical compound formed between oxygen and another…
+  2D DIODE: Semiconductor that consists of a p-n junction
+  3D DENY: To declare untrue, or to refuse to grant
