@@ -23,13 +23,5 @@ const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
     </div>
   </div>
 
-  <div class="jumble-final">
-    <div class="jumble-final-label">Final puzzle</div>
-    <p class="jumble-final-prompt">Arrange the answer to fit the clue above.</p>
-    <div class="jumble-final-blanks" aria-hidden="true">
-      {answerBlanks.map(() => <span class="jumble-blank jumble-blank-final" />)}
-    </div>
-  </div>
-
-  <p class="puzzle-hint-note">Answers via QR → answers page (no on-paper reveal)</p>
+  <p class="puzzle-hint-note">Answers via QR → answers page</p>
 </section>

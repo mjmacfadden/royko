@@ -874,76 +874,96 @@ a:hover {
   margin: 0.25rem 0 0;
 }
 
+.jumble-box {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  padding: 0 0.25rem 0.45rem;
+  background: transparent;
+}
+
+/* Header left-aligned like Crossword / Sports Trivia; scramble stays centered below */
+.jumble-box .section-label {
+  text-align: left;
+  width: 100%;
+  margin-top: 0;
+}
+
 .jumble-clue,
 .puzzle-clue {
   font-size: 0.72rem;
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.45rem;
   font-style: italic;
+  text-align: left;
 }
 
 .jumble-word-block {
-  margin: 0.2rem 0 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0.15rem 0 0.4rem;
+  width: 100%;
 }
 
 .jumble-tiles {
+  --jumble-tile: 1.35rem;
+  --jumble-gap: 0.22rem;
   display: flex;
   flex-wrap: wrap;
-  gap: 0.18rem;
-  margin-bottom: 0.35rem;
+  justify-content: center;
+  gap: var(--jumble-gap);
+  margin-bottom: 0.85rem;
+  padding: 0.2rem 0;
 }
 
 .jumble-tile {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 1.35rem;
-  height: 1.45rem;
+  width: var(--jumble-tile);
+  height: var(--jumble-tile);
   border: 1.5px solid #1a1a1a;
-  background: #fff;
+  border-radius: 50%;
+  background: transparent;
   font-family: var(--serif-display);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
   line-height: 1;
 }
 
-.jumble-blanks,
-.jumble-final-blanks {
+.jumble-blanks {
+  --jumble-tile: 1.35rem;
+  --jumble-gap: 0.22rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.18rem;
+  flex-wrap: nowrap;
+  justify-content: center;
+  gap: var(--jumble-gap);
+  padding: 0.35rem 0 0.55rem;
+  min-height: calc(var(--jumble-tile) + 0.55rem);
 }
 
 .jumble-blank {
-  display: inline-block;
-  width: 1.15rem;
-  height: 1.15rem;
-  border-bottom: 2px solid #1a1a1a;
   box-sizing: border-box;
+  display: inline-block;
+  width: var(--jumble-tile);
+  height: 0;
+  border: 0;
+  border-bottom: 1.5px solid #1a1a1a;
+  background: transparent;
+  border-radius: 0;
+  vertical-align: bottom;
 }
 
-.jumble-blank-final {
-  width: 1.05rem;
-  height: 1.05rem;
+.game-jumble {
+  display: flex;
+  justify-content: center;
 }
 
-.jumble-final {
-  border-top: 1px dotted #999;
-  padding-top: 0.3rem;
-  margin-top: 0.25rem;
-}
-
-.jumble-final-label {
-  font-family: var(--sans-small);
-  font-size: 0.55rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  margin-bottom: 0.15rem;
-}
-
-.jumble-final-prompt {
-  font-size: 0.65rem;
-  margin: 0 0 0.25rem;
-  color: var(--ink-muted);
+.game-jumble .jumble-box {
+  width: 100%;
+  max-width: 100%;
 }
 
 .jumble-scrambled {
@@ -957,7 +977,16 @@ a:hover {
 .crossword-box .section-label,
 .jumble-box .section-label,
 .trivia-box .section-label {
+  margin-top: 0;
   margin-bottom: 0.3rem;
+}
+
+.games-band > .game-cell {
+  padding-top: 0;
+}
+
+.games-band .section-label {
+  line-height: 1.15;
 }
 
 .trivia-box .trivia-list {

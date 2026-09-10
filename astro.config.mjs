@@ -13,6 +13,8 @@ import node from '@astrojs/node';
 export default defineConfig({
   output: 'server',
   adapter: node({ mode: 'standalone' }),
+  // Dev-only floating toolbar (audits / x-ray) — off for a clean newspaper preview
+  devToolbar: { enabled: false },
   vite: {
     optimizeDeps: {
       include: ['@vivliostyle/print'],
