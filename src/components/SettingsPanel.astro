@@ -30,13 +30,15 @@ const feedsBySection = {
     <section class="settings-section">
       <h3>Grok Automation brief</h3>
       <p class="settings-help">
-        <strong>Grok is the news backbone.</strong> Canonical:
-        <code>***Section***</code> headers, <code>**Headline**</code>, <code>*Named source: …*</code>, plain body;
-        images = <code>****https://image-url.jpg****</code> (optional duplicate in parens).
+        <strong>Grok is the news backbone.</strong> Canonical Markdown:
+        <code>## Section</code>, <code>**Headline**</code> (or <code>### Headline</code>),
+        <code>*Named source: …*</code>, plain body;
+        images = <code>![alt](https://image-url.jpg)</code> (also accepts <code>!(url)</code> / <code>! (url)</code>).
+        Legacy <code>***</code> / <code>****url****</code> still works.
         Weather/Markets = prose; What to watch = <code>-</code> bullets. Maps straight to columns
-        (National→News, Local→Also today / Local, Sports→Sports, Markets→Business). See README.
+        (National→News, Local→Also today / Local, Sports→Sports, Markets→Business).
       </p>
-      <textarea id="grok-brief-input" class="grok-brief-textarea" rows="10" placeholder="***National &amp; World***&#10;&#10;**Headline**&#10;*Named source: Reuters, September 9*&#10;Body…"></textarea>
+      <textarea id="grok-brief-input" class="grok-brief-textarea" rows="10" placeholder="## National &amp; World&#10;&#10;**Headline**&#10;*Named source: Reuters, September 9*&#10;Body…"></textarea>
       <div class="grok-brief-actions">
         <button type="button" id="grok-brief-save">Save brief</button>
         <button type="button" id="grok-brief-clear">Clear</button>

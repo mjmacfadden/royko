@@ -1,20 +1,21 @@
 /**
  * Parse Mike's Grok Automation morning brief.
  *
- * Canonical paste dialect (what Grok emits now):
+ * Canonical paste dialect (proper Markdown):
  *   optional **The Daily Mike** / date / lede
- *   ***Section Name***          ← SECTION (Weather, National & World, …)
- *   **Headline**                ← story headline
- *   *Named source: Outlet, Date*  (or plain Named source: / Source:)
+ *   ## Section Name              ← SECTION (Weather, National & World, …)
+ *   **Headline** or ### Headline ← story headline
+ *   *Named source: Outlet, Date*  (or _Named source:…_ / plain Named source: / Source:)
  *   plain body paragraphs
- *   ****https://image-url.jpg****   ← optional story image (alone on a line;
- *       optional duplicate URL in parens, e.g. ****url (url//)****)
+ *   ![alt](https://image-url.jpg) ← optional story image (alone on a line;
+ *       also accepts !(url) / ! (url) without [alt])
  *   - bullets under "What to watch today"
  *   Compiled … footer
  *
- * Alternates still accepted:
- *   ## Section headers
- *   ***Headline*** (older dialect — only when ***text*** is NOT a known section)
+ * Legacy dialect still accepted:
+ *   ***Section Name***
+ *   ****https://image-url.jpg****  (optional duplicate URL in parens)
+ *   ***Headline*** when ***text*** is NOT a known section
  *   **byline/source** after a headline
  */
 
@@ -31,7 +32,7 @@ export interface GrokStoryItem {
   headline: string;
   body: string;
   source?: string;
-  /** Optional image from ****https://…**** marker in the paste. */
+  /** Optional image from Markdown ![alt](url) or legacy ****url****. */
   imageUrl?: string;
 }
 
@@ -86,26 +87,31 @@ export function normalizeBriefText(raw: string): string {
     .trim();
 }
 
-/** Unwrap a single pair of italic *…* markers (not ** or ***). */
+/** Unwrap a single pair of italic *…* or _…_ markers (not ** or ***). */
 function unwrapItalicMarkers(s: string): string {
   const t = s.trim();
-  const m = t.match(/^\*([^*][\s\S]*?)\*$/);
-  if (!m) return t;
-  // Reject if it still looks like bold/triple (**x** starts with *)
-  if (t.startsWith('**')) return t;
-  return m[1].trim();
+  const star = t.match(/^\*([^*][\s\S]*?)\*$/);
+  if (star && !t.startsWith('**')) return star[1].trim();
+  const under = t.match(/^_([^_][\s\S]*?)_$/);
+  if (under) return under[1].trim();
+  return t;
 }
 
 function isSourceLine(line: string): string | null {
   let t = line.trim();
-  // *Named source: …* or *Source: …*
-  if (/^\*[^*]/.test(t) && t.endsWith('*') && !t.startsWith('**')) {
+  // *Named source: …* or _Named source: …_
+  if (
+    ((/^\*[^*]/.test(t) && t.endsWith('*') && !t.startsWith('**')) ||
+      (/^_[^_]/.test(t) && t.endsWith('_')))
+  ) {
     t = unwrapItalicMarkers(t);
   }
+
   // **Named source: …**
   if (/^\*\*[^*]/.test(t) && /\*\*$/.test(t) && !t.startsWith('***')) {
     t = stripBoldMarkers(t);
   }
+
   const m =
     t.match(/^(?:Named\s+)?[Ss]ource:\s*(.+)$/) ||
     t.match(/^Named\s+source:\s*(.+)$/i);
@@ -122,35 +128,72 @@ function isBullet(line: string): string | null {
 }
 
 /**
- * Image marker alone on a line (quadruple asterisks):
+ * Markdown / near-Markdown image alone on a line:
+ *   ![alt text](https://example.com/img.jpg)   ← correct Markdown
+ *   ![](https://example.com/img.jpg "title")
+ *   !(https://example.com/img.jpg)             ← missing [alt]
+ *   ! (https://…)                              ← space after ! (common Grok slip)
+ */
+export function extractMarkdownImage(line: string): string | null {
+  const t = line.trim();
+
+  // Standard: ![alt](url) or ![alt](url "title")
+  let m = t.match(/^!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+?)(?:\s+"[^"]*")?\s*\)\s*$/);
+  if (m) {
+    const url = m[2].trim();
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+
+  // Loose: !(url) or ! (url) — no [alt] brackets (Grok often emits this)
+  m = t.match(/^!\s*\(\s*(https?:\/\/[^\s)]+?)\s*\)\s*$/);
+  if (m) {
+    const url = m[1].trim();
+    if (/^https?:\/\//i.test(url)) return url;
+  }
+
+  // Bare image URL alone on a line
+  m = t.match(/^(https?:\/\/\S+\.(?:jpe?g|png|gif|webp|svg)(?:\?\S*)?)\s*$/i);
+  if (m) return m[1].trim();
+
+  return null;
+}
+
+/**
+ * Legacy image marker alone on a line (quadruple asterisks):
  *   ****https://example.com/img.jpg****
  *   ****https://…/img.jpg (https://…/img.jpg//)****
- * Returns the primary https URL, or null.
  */
-export function extractImageMarker(line: string): string | null {
+export function extractLegacyImageMarker(line: string): string | null {
   const t = line.trim();
   const m = t.match(
     /^\*{4}\s*(https?:\/\/[^\s*]+?)(?:\s*\(\s*(https?:\/\/[^)]+?)\s*\))?\s*\*{4}\s*$/,
   );
   if (!m) return null;
-  // Primary URL is before the optional paren duplicate; clean trailing // artifacts.
   const raw = (m[1] || m[2] || '').trim();
   const url = raw.replace(/\/{2,}$/, '');
   if (!/^https?:\/\//i.test(url)) return null;
   return url;
 }
 
-/** Strip ****image**** markers that leaked into body prose. */
+/** @deprecated use extractMarkdownImage / extractLegacyImageMarker */
+export function extractImageMarker(line: string): string | null {
+  return extractMarkdownImage(line) || extractLegacyImageMarker(line);
+}
+
+/** Strip image markers that leaked into body prose. */
 export function stripImageMarkers(text: string): string {
   return text
+    .replace(/!\[[^\]]*\]\(\s*https?:\/\/[^)]+?\s*\)/g, ' ')
+    .replace(/!\s*\(\s*https?:\/\/[^)]+?\s*\)/g, ' ')
     .replace(/\*{4}\s*https?:\/\/[^\s*]+?(?:\s*\([^)]*\))?\s*\*{4}/g, ' ')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/ *\n */g, '\n')
     .trim();
 }
 
+
 /**
- * ## headings — allow missing space, extra #s (###), trailing hashes.
+ * ##–###### headings — allow missing space, trailing hashes.
  * Reject single # (too ambiguous with plain text).
  */
 function isHeading(line: string): string | null {
@@ -163,6 +206,21 @@ function isHeading(line: string): string | null {
     return null;
   }
   return stripBoldMarkers(inner);
+}
+
+/**
+ * ### Headline (or ####+) as a story headline — not a section.
+ * Sections use ## (or legacy ***). Deeper ATX headings are headlines.
+ */
+function isAtxHeadline(line: string): { headline: string; rest: string } | null {
+  const t = line.trim();
+  const m = t.match(/^#{3,6}\s+(.+?)(?:\s+#*)?$/);
+  if (!m) return null;
+  const inner = m[1].replace(/#+\s*$/, '').trim();
+  if (!inner || /^the daily mike$/i.test(stripBoldMarkers(inner))) return null;
+  if (inner.length > 140) return null;
+  if (isSourceLine(inner) || /^(?:Named\s+)?[Ss]ource:/i.test(inner)) return null;
+  return { headline: stripBoldMarkers(inner), rest: '' };
 }
 
 /** Known section titles when paste lost ## / *** markers. */
@@ -181,13 +239,11 @@ function tripleAsteriskInner(line: string): string | null {
 
 /**
  * True when ***inner*** should be a SECTION, not a story headline.
- * Prefer known kinds / titles; also section-like titles with — or /.
  */
 function looksLikeSectionTitle(inner: string): boolean {
   if (!inner || inner.length > 100) return false;
   if (classifyHeading(inner) !== 'other') return true;
   if (BARE_SECTION_RE.test(inner)) return true;
-  // e.g. "Weather — Northbrook, Illinois" / "United States / Illinois / Chicago"
   if (/[—\/]/.test(inner) && classifyHeading(inner) !== 'other') return true;
   if (
     /[—\/]/.test(inner) &&
@@ -210,12 +266,15 @@ function isTripleSection(line: string): string | null {
 
 /**
  * Story headline:
- *   Prefer **Headline** (current Grok dialect).
- *   ***Headline*** only when NOT classified as a section (older dialect).
- * Returns [headline, optionalSameLineBody].
+ *   Prefer **Headline** (Markdown bold).
+ *   ### Headline (deeper ATX).
+ *   ***Headline*** only when NOT classified as a section (legacy).
  */
 function isHeadlineLine(line: string): { headline: string; rest: string } | null {
   const t = line.trim();
+
+  const atx = isAtxHeadline(t);
+  if (atx) return atx;
 
   // ***…*** — section wins elsewhere; leftover *** is legacy headline
   const tripleInner = tripleAsteriskInner(t);
@@ -223,7 +282,7 @@ function isHeadlineLine(line: string): { headline: string; rest: string } | null
     if (looksLikeSectionTitle(tripleInner)) return null;
     return { headline: tripleInner, rest: '' };
   }
-  // ***Headline*** then more text on same line (legacy)
+
   let m = t.match(/^\*\*\*(.+?)\*\*\*\s+(.+)$/);
   if (m) {
     const inner = m[1].trim();
@@ -240,13 +299,12 @@ function isHeadlineLine(line: string): { headline: string; rest: string } | null
   if (m) {
     const inner = m[1].trim();
     if (!inner || /^the daily mike$/i.test(inner)) return null;
-    // Don't treat "**Named source: …**" as a headline — source/byline instead
     if (isSourceLine(`**${inner}**`) || /^(?:Named\s+)?[Ss]ource:/i.test(inner)) {
       return null;
     }
     return { headline: inner, rest: '' };
   }
-  // **Headline** then more text on same line
+
   m = t.match(/^\*\*(.+?)\*\*\s+(.+)$/);
   if (m) {
     const inner = m[1].trim();
@@ -255,28 +313,27 @@ function isHeadlineLine(line: string): { headline: string; rest: string } | null
     if (/^(?:Named\s+)?[Ss]ource:/i.test(inner)) return null;
     return { headline: inner, rest: m[2].trim() };
   }
+
   return null;
 }
 
 /**
  * **byline/source** alone on a line (double asterisk only — not ***).
- * Used immediately after a headline. Also unwraps "Named source:" / "Source:" inside bold.
  */
 function isBylineLine(line: string): string | null {
   const t = line.trim();
   if (/^\*\*\*/.test(t)) return null;
-  // Italic *Named source: …* — handled via isSourceLine in the main loop
+
   const srcItalic = isSourceLine(t);
-  if (srcItalic && /^\*[^*]/.test(t) && !t.startsWith('**')) return srcItalic;
+  if (srcItalic && ((/^\*[^*]/.test(t) && !t.startsWith('**')) || /^_/.test(t))) {
+    return srcItalic;
+  }
 
   const m = t.match(/^\*\*(.+?)\*\*\s*$/);
   if (!m) return null;
   const inner = m[1].trim();
   if (!inner || /^the daily mike$/i.test(inner)) return null;
   const named = isSourceLine(inner) || isSourceLine(`**${inner}**`);
-  // Only treat as byline when it looks like a source/byline, OR short attribution.
-  // Prefer Named source: / Source: ; otherwise accept short bold lines as bylines
-  // (legacy **Wire Brief**) when caller already gated on pending empty-body item.
   if (named) return named;
   if (inner.length <= 80 && !/[.!?]$/.test(inner)) return inner;
   return null;
@@ -290,7 +347,6 @@ function isTimezoneLine(line: string): boolean {
 function isBareSectionHeading(line: string): string | null {
   const t = stripBoldMarkers(line.trim());
   if (!t || t.length > 80) return null;
-  // Ignore *** / ** wrappers already stripped; also strip lone *
   const bare = t.replace(/^\*+|\*+$/g, '').trim();
   if (BARE_SECTION_RE.test(bare)) return bare;
   if (BARE_SECTION_RE.test(t)) return t;
@@ -298,13 +354,12 @@ function isBareSectionHeading(line: string): string | null {
 }
 
 function isSectionStart(line: string): string | null {
+  // ## Section is canonical; ###+ is headline, not section
+  const t = line.trim();
+  if (/^#{3,6}\s/.test(t)) return null;
   return isHeading(line) || isTripleSection(line) || isBareSectionHeading(line);
 }
 
-/**
- * Light heuristic when markdown was stripped: short Title-ish lines
- * followed by longer prose become headlines.
- */
 function heuristicItemsFromParagraphs(paras: string[]): GrokStoryItem[] {
   const items: GrokStoryItem[] = [];
   let i = 0;
@@ -321,6 +376,7 @@ function heuristicItemsFromParagraphs(paras: string[]): GrokStoryItem[] {
       !isFooter(line) &&
       next &&
       next.length > line.length * 0.6;
+
     if (looksLikeHeadline) {
       let body = next;
       let source: string | undefined;
@@ -365,10 +421,13 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   let dateLine: string | null = null;
   let footer: string | null = null;
   const sections: GrokSection[] = [];
-
   let i = 0;
+
   // Title
   if (lines[i] && /^\*\*The Daily Mike\*\*/i.test(lines[i].trim())) {
+    title = 'The Daily Mike';
+    i++;
+  } else if (lines[i] && /^#\s*The Daily Mike\s*$/i.test(lines[i].trim())) {
     title = 'The Daily Mike';
     i++;
   } else if (lines[i] && /^The Daily Mike$/i.test(stripBoldMarkers(lines[i]))) {
@@ -378,10 +437,10 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   while (i < lines.length && !lines[i].trim()) i++;
 
-  // Date line (before first section)
   if (
     i < lines.length &&
     !isSectionStart(lines[i]) &&
+    !isAtxHeadline(lines[i]) &&
     /20\d{2}|january|february|march|april|may|june|july|august|september|october|november|december|america\/chicago|\bCT\b/i.test(
       lines[i],
     )
@@ -400,9 +459,13 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
 
   while (i < lines.length && !lines[i].trim()) i++;
 
-  // Lede / pre-heading paragraphs until first section heading
   const ledeParts: string[] = [];
-  while (i < lines.length && !isSectionStart(lines[i])) {
+  while (
+    i < lines.length &&
+    !isSectionStart(lines[i]) &&
+    !isAtxHeadline(lines[i]) &&
+    !isHeadlineLine(lines[i])
+  ) {
     const line = lines[i];
     if (isFooter(line)) {
       footer = line.trim();
@@ -420,7 +483,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
   let current: GrokSection | null = null;
   let pendingItem: GrokStoryItem | null = null;
   let sawMarkdownHeading = false;
-
   let pendingSectionImage: string | undefined;
 
   const flushItem = () => {
@@ -462,8 +524,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    // ****https://…**** image markers (must run before *** section/headline)
-    const imageUrl = extractImageMarker(trimmed);
+    // Images: Markdown ![alt](url) first, then legacy ****url****
+    const imageUrl = extractMarkdownImage(trimmed) || extractLegacyImageMarker(trimmed);
     if (imageUrl) {
       if (pendingItem) {
         pendingItem.imageUrl = imageUrl;
@@ -473,11 +535,14 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    const mdHeading = isHeading(trimmed);
-    if (mdHeading) {
-      sawMarkdownHeading = true;
-      startSection(mdHeading);
-      continue;
+    // ## Section (canonical Markdown). ###+ is a headline via isHeadlineLine.
+    if (/^##(?!#)/.test(trimmed)) {
+      const mdHeading = isHeading(trimmed);
+      if (mdHeading) {
+        sawMarkdownHeading = true;
+        startSection(mdHeading);
+        continue;
+      }
     }
 
     const tripleSec = isTripleSection(trimmed);
@@ -506,7 +571,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    // Byline / *Named source:* immediately after a headline (body still empty)
     if (pendingItem && !pendingItem.body.trim() && !pendingItem.source) {
       const byline = isBylineLine(trimmed);
       if (byline) {
@@ -546,21 +610,20 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       continue;
     }
 
-    // Free prose in section (weather, markets, etc.)
-    // Skip orphan Source: lines under weather — fold into last paragraph note
     if (src && current.paragraphs.length) {
       current.paragraphs[current.paragraphs.length - 1] += ` (Source: ${src})`;
       continue;
     }
+
     current.paragraphs.push(trimmed);
   }
+
   flushItem();
   if (current && pendingSectionImage) {
     current.imageUrl = pendingSectionImage;
     pendingSectionImage = undefined;
   }
 
-  // Heuristic: sections that only have paragraphs (lost **) → try headline pairs
   for (const sec of sections) {
     if (
       sec.items.length === 0 &&
@@ -577,7 +640,6 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
     }
   }
 
-  // Markets prose-only → one Brief card for Business · Tech interleave
   for (const sec of sections) {
     if (sec.kind === 'markets' && sec.items.length === 0 && sec.paragraphs.length) {
       sec.items.push({
@@ -604,7 +666,7 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       raw: text,
       structured: false,
       warning:
-        'Paste needs ***Section*** (or ## Section) markers and **Headline** stories. Raw text was not dumped onto the paper.',
+        'Paste needs ## Section markers (or legacy ***Section***) and **Headline** stories. Raw text was not dumped onto the paper.',
     };
   }
 
@@ -618,8 +680,8 @@ export function parseGrokBrief(raw: string): ParsedGrokBrief {
       raw: text,
       structured: false,
       warning: sawMarkdownHeading
-        ? 'Found sections but no **Headline** stories. Use **Headline** on its own line, optional *Named source:…*, then plain body.'
-        : 'Paste needs ***Section*** / ## sections and **Headline** stories. Could not structure this paste.',
+        ? 'Found sections but no **Headline** stories. Use **Headline** (or ### Headline) on its own line, optional *Named source:…*, then plain body.'
+        : 'Paste needs ## sections and **Headline** stories. Could not structure this paste.',
     };
   }
 
