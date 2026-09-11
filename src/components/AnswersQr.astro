@@ -16,9 +16,12 @@ const svg = await QRCode.toString(url, {
 });
 ---
 <aside class="answers-qr" aria-label="Puzzle answers QR code">
-  <div class="answers-qr-svg" set:html={svg} />
-  <p class="answers-qr-caption">{caption}</p>
-  <p class="answers-qr-url screen-only">
-    <a href={`/answers/${date}`}>{url}</a>
-  </p>
+  <h2 class="section-label">Puzzle Answers</h2>
+  <div class="answers-qr-body">
+    <div class="answers-qr-svg" set:html={svg} />
+    <p class="answers-qr-caption">{caption}</p>
+    <p class="answers-qr-url screen-only">
+      <a href={`/answers/${date}`}>{url}</a>
+    </p>
+  </div>
 </aside>

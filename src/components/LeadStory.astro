@@ -12,6 +12,13 @@ const { story } = Astro.props;
   <p class="lead-deck">{story.description}</p>
   <div class="lead-meta">{story.source} · {story.category}</div>
   {story.image ? (
-    <img class="story-image" src={story.image} alt="" loading="lazy" />
+    <div class="lead-image-frame" data-align="center">
+      <img class="story-image" data-lead-image src={story.image} alt="" loading="lazy" />
+      <div class="lead-image-align" role="group" aria-label="Image crop position">
+        <button type="button" class="lead-align-btn" data-lead-align="top" title="Align top" aria-label="Align top" aria-pressed="false">Top</button>
+        <button type="button" class="lead-align-btn" data-lead-align="center" title="Align center" aria-label="Align center" aria-pressed="true">Center</button>
+        <button type="button" class="lead-align-btn" data-lead-align="bottom" title="Align bottom" aria-label="Align bottom" aria-pressed="false">Bottom</button>
+      </div>
+    </div>
   ) : null}
 </article>

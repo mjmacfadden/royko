@@ -2,14 +2,16 @@
 import type { JumbleEntry } from '../data/types';
 interface Props {
   puzzle: JumbleEntry;
+  /** Section heading — default "Jumble" */
+  heading?: string;
 }
-const { puzzle } = Astro.props;
+const { puzzle, heading = 'Jumble' } = Astro.props;
 const scrambledLetters = puzzle.scrambled.replace(/\s+/g, '').toUpperCase().split('');
 const answerLen = puzzle.answer.replace(/\s+/g, '').length;
 const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
 ---
-<section class="jumble-box" aria-label="Jumble">
-  <h2 class="section-label">Jumble</h2>
+<section class="jumble-box" aria-label={heading}>
+  <h2 class="section-label">{heading}</h2>
   <p class="jumble-clue">{puzzle.clue}</p>
 
   <div class="jumble-word-block">
@@ -22,6 +24,4 @@ const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
       {answerBlanks.map(() => <span class="jumble-blank" />)}
     </div>
   </div>
-
-  <p class="puzzle-hint-note">Answers via QR → answers page</p>
 </section>

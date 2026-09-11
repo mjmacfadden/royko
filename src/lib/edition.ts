@@ -1,8 +1,9 @@
 import type { Edition, RssStory, ComicStripData } from '../data/types';
 import { fetchAllFeeds } from './rss';
-import { fetchComics } from './comics';
+import { fetchComics, getComicsPool } from './comics';
 import { chicagoDateKey } from './dateFilter';
 import { getBirthdaysForDate } from '../data/birthdays';
+import { getHistoryForDate } from '../data/history';
 
 function take<T>(arr: T[], n: number): T[] {
   return arr.slice(0, n);
@@ -43,14 +44,17 @@ export async function buildLiveEdition(
   edition: Edition;
   feedStatus: { ok: string[]; failed: { id: string; error: string }[] };
   comicsLive: boolean;
+  comicsPool: import('../data/types').ComicStripData[];
   rssEnabled: boolean;
 }> {
   const editionDate = opts.date || chicagoDateKey();
   const dateDisplay = formatChicagoDateDisplay(editionDate);
   const birthdays = getBirthdaysForDate(editionDate);
+  const todayInHistory = getHistoryForDate(editionDate);
   const rssEnabled = opts.rssEnabled === true;
 
   const comics = await fetchComics();
+  const comicsPool = getComicsPool();
   const comicSlots: ComicStripData[] = comics.length
     ? comics
     : base.comics.map((c) => ({
@@ -66,6 +70,7 @@ export async function buildLiveEdition(
       date: editionDate,
       dateDisplay,
       birthdays,
+      todayInHistory,
       leadStory: EMPTY_LEAD,
       alsoToday: [],
       news: [],
@@ -78,6 +83,7 @@ export async function buildLiveEdition(
       edition,
       feedStatus: { ok: [], failed: [] },
       comicsLive: comics.some((c) => c.live),
+      comicsPool,
       rssEnabled: false,
     };
   }
@@ -112,6 +118,7 @@ export async function buildLiveEdition(
     date: editionDate,
     dateDisplay,
     birthdays,
+    todayInHistory,
     leadStory,
     alsoToday,
     news,
@@ -124,6 +131,7 @@ export async function buildLiveEdition(
     edition,
     feedStatus: { ok: feeds.okFeeds, failed: feeds.failedFeeds },
     comicsLive: comics.some((c) => c.live),
+    comicsPool,
     rssEnabled: true,
   };
 }

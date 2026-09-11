@@ -31,6 +31,12 @@ export const COMIC_FEEDS: ComicFeedConfig[] = [
     credit: 'Matthew Inman',
     url: 'https://theoatmeal.com/feed/rss',
   },
+  {
+    id: 'newyorker-daily',
+    title: 'New Yorker Daily Cartoon',
+    credit: 'The New Yorker',
+    url: 'https://www.newyorker.com/feed/cartoons/daily-cartoon/rss',
+  },
 ];
 
 /** Last-page comics row: two strips side by side (most current by pub date). */

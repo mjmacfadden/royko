@@ -8,6 +8,39 @@ import type { CalendarSource } from './calendar';
 export const SETTINGS_STORAGE_KEY = 'daily-mike-settings-v1';
 export const GROK_BRIEF_STORAGE_KEY = 'daily-mike-grok-brief-v1';
 
+/** One-shot opt-in for newly shipped comics (won’t re-enable after you uncheck). */
+const COMIC_OPT_IN_KEY = 'daily-mike-comic-optins-v1';
+const COMIC_IDS_TO_OPT_IN = ['newyorker-daily'] as const;
+
+function withNewComicDefaults(enabledComicIds: string[]): string[] {
+  if (typeof localStorage === 'undefined') return enabledComicIds;
+  let applied: string[] = [];
+  try {
+    const raw = localStorage.getItem(COMIC_OPT_IN_KEY);
+    applied = raw ? (JSON.parse(raw) as string[]) : [];
+    if (!Array.isArray(applied)) applied = [];
+  } catch {
+    applied = [];
+  }
+  const set = new Set(enabledComicIds);
+  let changed = false;
+  for (const id of COMIC_IDS_TO_OPT_IN) {
+    if (applied.includes(id)) continue;
+    if (!DEFAULT_ENABLED_COMIC_IDS.includes(id)) continue;
+    set.add(id);
+    applied.push(id);
+    changed = true;
+  }
+  if (changed) {
+    try {
+      localStorage.setItem(COMIC_OPT_IN_KEY, JSON.stringify(applied));
+    } catch {
+      /* ignore */
+    }
+  }
+  return Array.from(set);
+}
+
 export interface CustomFeed {
   id: string;
   name: string;
@@ -73,9 +106,11 @@ export function loadSettings(): PaperSettings {
             (f) => f && typeof f.url === 'string' && f.url.startsWith('http'),
           )
         : [],
-      enabledComicIds: Array.isArray(parsed.enabledComicIds)
-        ? parsed.enabledComicIds.filter((id) => typeof id === 'string')
-        : base.enabledComicIds,
+      enabledComicIds: withNewComicDefaults(
+        Array.isArray(parsed.enabledComicIds)
+          ? parsed.enabledComicIds.filter((id) => typeof id === 'string')
+          : base.enabledComicIds,
+      ),
       calendars: Array.isArray(parsed.calendars)
         ? parsed.calendars.filter(
             (c) => c && typeof c.url === 'string' && c.url.startsWith('http'),
@@ -159,9 +194,11 @@ export function normalizePaperSettings(parsed: Partial<PaperSettings> | null | u
           (f) => f && typeof f.url === 'string' && f.url.startsWith('http'),
         )
       : [],
-    enabledComicIds: Array.isArray(parsed.enabledComicIds)
-      ? parsed.enabledComicIds.filter((id) => typeof id === 'string')
-      : base.enabledComicIds,
+    enabledComicIds: withNewComicDefaults(
+      Array.isArray(parsed.enabledComicIds)
+        ? parsed.enabledComicIds.filter((id) => typeof id === 'string')
+        : base.enabledComicIds,
+    ),
     calendars: Array.isArray(parsed.calendars)
       ? parsed.calendars.filter(
           (c) => c && typeof c.url === 'string' && c.url.startsWith('http'),

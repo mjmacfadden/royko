@@ -24,7 +24,7 @@ import Birthdays from '../components/Birthdays.astro';
 import AnswersQr from '../components/AnswersQr.astro';
 import SettingsPanel from '../components/SettingsPanel.astro';
 
-const { edition, feedStatus, comicsLive, rssEnabled } = await buildLiveEdition(latestEdition);
+const { edition, feedStatus, comicsLive, comicsPool, rssEnabled } = await buildLiveEdition(latestEdition);
 const editionDate = new Date(`${edition.date}T12:00:00`);
 const puzzles = puzzlesForDate(editionDate);
 const feedCatalog = NEWS_FEEDS.map((f) => ({ id: f.id, name: f.name, section: f.section }));
@@ -180,14 +180,21 @@ const hasWireStories =
           {/* Fixed last-page block — out of the 3-column news flow */}
           <div class="page3-features" data-features-block>
             <div class="comics-band" aria-label="Comics" data-live-comics>
-              {edition.comics.map((c) => <ComicStrip comic={c} />)}
+              {(comicsPool.length ? comicsPool : edition.comics).map((c) => <ComicStrip comic={c} />)}
             </div>
             <div class="games-band" aria-label="Games">
               <div class="game-cell game-crossword">
                 <CrosswordPuzzle puzzle={puzzles.crossword} />
               </div>
               <div class="game-cell game-jumble">
-                <JumblePuzzle puzzle={puzzles.jumble} />
+                <div class="jumble-stack">
+                  {puzzles.jumbles.map((j, i) => (
+                    <JumblePuzzle
+                      puzzle={j}
+                      heading={i === 0 ? 'Jumble' : `Jumble ${i + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
               <div class="game-cell game-trivia">
                 <SportsTrivia trivia={puzzles.trivia} />
@@ -215,6 +222,7 @@ const hasWireStories =
 
     <script id="feed-catalog" type="application/json" set:html={JSON.stringify(feedCatalog)} />
     <script id="comic-catalog" type="application/json" set:html={JSON.stringify(comicCatalog)} />
+    <script id="comics-pool" type="application/json" set:html={JSON.stringify(comicsPool)} />
     <script id="edition-bootstrap" type="application/json" set:html={JSON.stringify({
       date: edition.date,
       lead: edition.leadStory?.title ? edition.leadStory : null,
@@ -277,6 +285,8 @@ const hasWireStories =
         try {
           await fillPrintWeather(settings?.zip || '60062').catch(() => undefined);
           const result = await paginateEdition();
+          applyLeadImageAlign();
+          fitComicSourceUrls();
           const total = result.pageCount || getPageSheetCount() || 1;
           if (indicator) indicator.textContent = `Page ${Math.min(current, total)} / ${total}`;
           if (prevBtn) prevBtn.disabled = current <= 1;
@@ -348,11 +358,10 @@ const hasWireStories =
             return;
           }
         }
-        if (e.key === 'ArrowLeft') showPage(current - 1);
-        if (e.key === 'ArrowRight') showPage(current + 1);
       });
       window.addEventListener('scroll', () => syncPageFromScroll(), { passive: true });
       window.addEventListener('resize', () => {
+        fitComicSourceUrls();
         schedulePaginate();
         syncPageFromScroll();
       });
@@ -484,6 +493,43 @@ const hasWireStories =
         return `<img class="story-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`;
       }
 
+      const LEAD_ALIGN_KEY = 'daily-mike-lead-image-align';
+      type LeadAlign = 'top' | 'center' | 'bottom';
+
+      function loadLeadAlign(): LeadAlign {
+        try {
+          const v = localStorage.getItem(LEAD_ALIGN_KEY);
+          if (v === 'top' || v === 'center' || v === 'bottom') return v;
+        } catch {
+          /* ignore */
+        }
+        return 'center';
+      }
+
+      function applyLeadImageAlign(align?: LeadAlign) {
+        const a = align ?? loadLeadAlign();
+        document.querySelectorAll('.lead-image-frame').forEach((frame) => {
+          frame.setAttribute('data-align', a);
+          frame.querySelectorAll('[data-lead-align]').forEach((btn) => {
+            const on = btn.getAttribute('data-lead-align') === a;
+            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+          });
+        });
+      }
+
+      function leadStoryImageHtml(imageUrl?: string) {
+        if (!imageUrl) return '';
+        const a = loadLeadAlign();
+        return `<div class="lead-image-frame" data-align="${a}">
+          <img class="story-image" data-lead-image src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />
+          <div class="lead-image-align" role="group" aria-label="Image crop position">
+            <button type="button" class="lead-align-btn" data-lead-align="top" title="Align top" aria-label="Align top" aria-pressed="${a === 'top'}">Top</button>
+            <button type="button" class="lead-align-btn" data-lead-align="center" title="Align center" aria-label="Align center" aria-pressed="${a === 'center'}">Center</button>
+            <button type="button" class="lead-align-btn" data-lead-align="bottom" title="Align bottom" aria-label="Align bottom" aria-pressed="${a === 'bottom'}">Bottom</button>
+          </div>
+        </div>`;
+      }
+
       function storyHtml(s: {
         title: string;
         description: string;
@@ -588,10 +634,11 @@ const hasWireStories =
         }
         root.innerHTML = `<article class="lead-story">
           <h2 class="lead-hed">${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
-          ${storyImageHtml(story.imageUrl)}
+          ${leadStoryImageHtml(story.imageUrl)}
           <p class="lead-deck">${escapeHtml(story.description || '')}</p>
           <p class="lead-meta">${escapeHtml(story.source || '')}</p>
         </article>${roundupHtml}`;
+        applyLeadImageAlign();
       }
 
       const NO_VALID_CALENDAR: { time: string; title: string; note?: string }[] = [
@@ -1137,15 +1184,131 @@ const hasWireStories =
           let id = box.dataset.comicId || '';
           if (!id) {
             const title = (box.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
-            const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal' };
+            const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal', 'new yorker daily cartoon': 'newyorker-daily' };
             id = map[title] || '';
           }
           const want = Boolean(id && enabled.has(id) && shown < 2);
           box.style.display = want ? '' : 'none';
           if (want) shown += 1;
         });
+        fitComicSourceUrls();
         schedulePaginate();
       }
+
+
+      function shortComicUrl(href: string) {
+        return href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+      }
+
+      function fitComicSourceUrls(root: ParentNode = document) {
+        root.querySelectorAll<HTMLElement>('.comic-source-url[data-fit-url]').forEach((el) => {
+          const parent = el.parentElement;
+          if (!parent) return;
+          el.style.fontSize = '';
+          let size = 0.52; // rem
+          el.style.fontSize = `${size}rem`;
+          // Shrink until it fits one line in the comic column
+          for (let i = 0; i < 24 && el.scrollWidth > parent.clientWidth && size > 0.32; i++) {
+            size -= 0.02;
+            el.style.fontSize = `${size}rem`;
+          }
+        });
+      }
+
+      function escapeAttr(t: string) {
+        return escapeHtml(t).replace(/`/g, '&#96;');
+      }
+
+      function comicBoxHtml(c: {
+        id: string;
+        title: string;
+        credit: string;
+        caption: string;
+        imageUrl?: string | null;
+        link?: string;
+        live?: boolean;
+      }) {
+        const href = c.link || c.imageUrl || '';
+        const img = c.imageUrl
+          ? `<a class="comic-image-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">
+              <img class="comic-image" src="${escapeAttr(c.imageUrl)}" alt="${escapeAttr(c.title)} — ${escapeAttr(c.caption)}" loading="lazy" referrerpolicy="no-referrer" data-comic-img />
+            </a>`
+          : `<p class="comic-caption-only">${escapeHtml(c.caption)}</p>`;
+        const source = href
+          ? `<p class="comic-source"><a class="comic-source-url" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" data-fit-url>${escapeHtml(shortComicUrl(href))}</a></p>`
+          : '';
+        return `<section class="comic-box" aria-label="${escapeAttr(c.title)}" data-comic-id="${escapeAttr(c.id)}" data-comic-live="${c.live ? '1' : '0'}">
+          <h2 class="section-label">${escapeHtml(c.title)}</h2>
+          <div class="comic-frame">
+            <div class="comic-credit">${escapeHtml(c.credit)}${c.live === false ? ' <span class="comic-fallback-flag"> · feed fallback</span>' : ''}</div>
+            ${img}
+            ${source}
+          </div>
+        </section>`;
+      }
+
+      let comicsPool: {
+        id: string;
+        title: string;
+        credit: string;
+        caption: string;
+        imageUrl?: string | null;
+        link?: string;
+        live?: boolean;
+      }[] = [];
+      try {
+        const poolEl = document.getElementById('comics-pool');
+        if (poolEl?.textContent) comicsPool = JSON.parse(poolEl.textContent);
+      } catch {
+        comicsPool = [];
+      }
+      const comicsUsed = new Set(
+        Array.from(document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box'))
+          .map((el) => el.dataset.comicId || '')
+          .filter(Boolean),
+      );
+
+      function promoteNextComic(band: HTMLElement) {
+        const next = comicsPool.find((c) => c.id && !comicsUsed.has(c.id) && c.imageUrl);
+        if (!next) return false;
+        comicsUsed.add(next.id);
+        band.insertAdjacentHTML('beforeend', comicBoxHtml(next));
+        return true;
+      }
+
+      document.addEventListener(
+        'error',
+        (e) => {
+          const img = e.target as HTMLElement | null;
+          if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-comic-img')) return;
+          const box = img.closest('.comic-box') as HTMLElement | null;
+          const band = box?.closest('[data-live-comics]') as HTMLElement | null;
+          if (!box || !band) return;
+          const failedId = box.dataset.comicId || '';
+          if (failedId) comicsUsed.add(failedId);
+          box.remove();
+          promoteNextComic(band);
+          applyComicVisibility(settings);
+          schedulePaginate();
+        },
+        true,
+      );
+
+      document.addEventListener('click', (e) => {
+        const t = e.target as HTMLElement | null;
+        const btn = t?.closest?.('[data-lead-align]') as HTMLElement | null;
+        if (!btn) return;
+        const align = btn.getAttribute('data-lead-align');
+        if (align !== 'top' && align !== 'center' && align !== 'bottom') return;
+        e.preventDefault();
+        try {
+          localStorage.setItem(LEAD_ALIGN_KEY, align);
+        } catch {
+          /* ignore */
+        }
+        applyLeadImageAlign(align);
+      });
+      applyLeadImageAlign();
 
       void applyWeather(settings.zip);
       window.addEventListener('beforeprint', () => {

@@ -64,8 +64,13 @@ function pickImageFromHtml(html: string): string | null {
 }
 
 function pickImage(item: Record<string, unknown>): string | null {
-  const media = item['media:content'] ?? item['media:thumbnail'];
-  for (const m of asArray(media)) {
+  // Prefer media:content, but also try media:thumbnail — New Yorker often ships
+  // an empty <media:content/> plus a real thumbnail URL.
+  const mediaCandidates = [
+    ...asArray(item['media:content']),
+    ...asArray(item['media:thumbnail']),
+  ];
+  for (const m of mediaCandidates) {
     if (m && typeof m === 'object' && (m as Record<string, unknown>)['@_url']) {
       return String((m as Record<string, unknown>)['@_url']);
     }
@@ -117,6 +122,77 @@ function pickPublishedAt(item: Record<string, unknown>): string | null {
   return Number.isFinite(ms) ? new Date(ms).toISOString() : null;
 }
 
+async function imageReachable(url: string): Promise<boolean> {
+  if (!url || !/^https?:\/\//i.test(url)) return false;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    // Prefer GET with a tiny range — many CDNs reject or lie on HEAD.
+    const res = await fetch(url, {
+      method: 'GET',
+      redirect: 'follow',
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; comics image check)',
+        Accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
+        Range: 'bytes=0-1023',
+      },
+    });
+    if (res.ok || res.status === 206) return true;
+    // Some hosts dislike Range; retry plain GET once.
+    if (res.status === 416 || res.status === 400 || res.status === 403) {
+      const res2 = await fetch(url, {
+        method: 'GET',
+        redirect: 'follow',
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; comics image check)',
+          Accept: 'image/*,*/*;q=0.8',
+        },
+      });
+      return res2.ok;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function feedHomeUrl(feed: ComicFeedConfig): string {
+  return feed.url
+    .replace(/\/feed\/cartoons\/daily-cartoon\/rss\/?$/i, '/cartoons/daily-cartoon')
+    .replace(/\/feed\/rss\/?$/i, '/')
+    .replace(/\/rss\.xml$/i, '/');
+}
+
+function itemToStrip(
+  feed: ComicFeedConfig,
+  item: Record<string, unknown>,
+): ComicStripData | null {
+  const imageUrl = pickImage(item);
+  if (!imageUrl) return null;
+  const title = textOf(item.title) || feed.title;
+  const link = pickLink(item) || feedHomeUrl(feed);
+  const caption = decodeEntities(textOf(item.description ?? item.summary ?? ''))
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 180);
+  const publishedAt = pickPublishedAt(item);
+  return {
+    id: feed.id,
+    title: feed.title,
+    credit: feed.credit,
+    caption: caption || title,
+    imageUrl,
+    link,
+    live: true,
+    publishedAt,
+  };
+}
+
 async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 12000);
@@ -133,69 +209,56 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
     if (!xml.trim()) throw new Error('empty body');
     const doc = parser.parse(xml);
     const items = extractItems(doc);
-    const item = items[0];
-    if (!item) throw new Error('empty feed');
-    const title = textOf(item.title) || feed.title;
-    const link = pickLink(item) || feed.url;
-    const imageUrl = pickImage(item);
-    const caption = decodeEntities(textOf(item.description ?? item.summary ?? ''))
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 180);
-    const publishedAt = pickPublishedAt(item);
-    return {
-      id: feed.id,
-      title: feed.title,
-      credit: feed.credit,
-      caption: caption || title,
-      imageUrl: imageUrl ?? null,
-      link,
-      live: Boolean(imageUrl || link),
-      publishedAt,
-    };
+    if (!items.length) throw new Error('empty feed');
+
+    // Prefer an item with an image URL. Reachability is best-effort: many
+    // CDNs block server-side probes even when the browser can hotlink fine.
+    let withImage: ComicStripData | null = null;
+    for (const item of items.slice(0, 8)) {
+      const strip = itemToStrip(feed, item);
+      if (!strip?.imageUrl) continue;
+      if (!withImage) withImage = strip;
+      if (await imageReachable(strip.imageUrl)) return strip;
+    }
+    if (withImage) return withImage;
+    throw new Error('no comic image in feed');
   } finally {
     clearTimeout(timer);
   }
 }
 
-function fallbackStrip(feed: ComicFeedConfig, msg: string): ComicStripData {
-  return {
-    id: feed.id,
-    title: feed.title,
-    credit: feed.credit,
-    caption: `Comic feed unavailable (${msg}). Open the strip on the publisher site.`,
-    imageUrl: null,
-    link: feed.url.replace(/\/feed\/rss\/?$/, '/').replace(/\/rss\.xml$/, '/'),
-    live: false,
-    publishedAt: null,
-  };
+/** Full live candidate list from the last fetchComics() call (sorted). */
+export let lastComicsPool: ComicStripData[] = [];
+
+export function getComicsPool(): ComicStripData[] {
+  return lastComicsPool;
 }
 
 /**
- * Fetch comics. Optional enabledIds filters sources; results capped for print.
+ * Fetch comics. Optional enabledIds filters sources.
+ * Skips feeds whose images fail to load and continues to the next source
+ * until MAX_COMICS_ON_PAGE live strips are filled (or candidates run out).
  */
 export async function fetchComics(enabledIds?: string[] | null): Promise<ComicStripData[]> {
-  const enabled = enabledIds?.length
-    ? new Set(enabledIds)
-    : null;
+  const enabled = enabledIds?.length ? new Set(enabledIds) : null;
   const feeds = COMIC_FEEDS.filter((f) => !enabled || enabled.has(f.id));
-  const out: ComicStripData[] = [];
+  const live: ComicStripData[] = [];
+
   for (const feed of feeds) {
     try {
-      out.push(await fetchOne(feed));
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      out.push(fallbackStrip(feed, msg));
+      live.push(await fetchOne(feed));
+    } catch {
+      // Skip — try the next feed so the page still fills.
     }
   }
-  // Prefer live strips with newest pub dates; fall back to feed order.
-  out.sort((a, b) => {
+
+  live.sort((a, b) => {
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
     if (tb !== ta) return tb - ta;
-    if (Boolean(b.live) !== Boolean(a.live)) return Number(Boolean(b.live)) - Number(Boolean(a.live));
     return 0;
   });
-  return out.slice(0, MAX_COMICS_ON_PAGE);
+
+  lastComicsPool = live;
+  return live.slice(0, MAX_COMICS_ON_PAGE);
 }

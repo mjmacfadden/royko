@@ -8,7 +8,7 @@ import { PAPER_NAME_UPPER, PAPER_TAGLINE } from '../../lib/site';
 const { date } = Astro.params;
 const editionDate = date ? new Date(`${date}T12:00:00`) : new Date();
 const puzzles = puzzlesForDate(editionDate);
-const { crossword, jumble, trivia } = puzzles;
+const { crossword, jumbles, trivia } = puzzles;
 
 ---
 
@@ -36,12 +36,14 @@ const { crossword, jumble, trivia } = puzzles;
         <p class="answers-spoiler">Spoilers below — finish the paper first.</p>
       </header>
 
-      <section class="answers-section">
-        <h2>Jumble</h2>
-        <p class="answers-meta">{jumble.clue}</p>
-        <p class="answers-scrambled">{jumble.scrambled}</p>
-        <p class="answers-value"><strong>{jumble.answer}</strong></p>
-      </section>
+      {jumbles.map((jumble, i) => (
+        <section class="answers-section">
+          <h2>{i === 0 ? 'Jumble' : `Jumble ${i + 1}`}</h2>
+          <p class="answers-meta">{jumble.clue}</p>
+          <p class="answers-scrambled">{jumble.scrambled}</p>
+          <p class="answers-value"><strong>{jumble.answer}</strong></p>
+        </section>
+      ))}
 
       <section class="answers-section">
         <h2>Sports trivia</h2>

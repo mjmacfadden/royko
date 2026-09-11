@@ -618,19 +618,82 @@ a:hover {
   background: transparent;
 }
 
-/* Lead image: full width of the 2/3 lead column, fixed 300px crop, centered */
-.lead-story .story-image,
-.front-lead .lead-story .story-image,
-.sheet-unit .lead-story .story-image {
+/* Lead image: full width of the 2/3 lead column, fixed 220px crop */
+.lead-image-frame {
+  position: relative;
   display: block;
   width: 100%;
   max-width: 100%;
-  height: 300px;
-  max-height: 300px;
+  margin: 0.3rem auto 0.4rem;
+}
+
+.lead-story .story-image,
+.front-lead .lead-story .story-image,
+.sheet-unit .lead-story .story-image,
+.lead-image-frame .story-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: 220px;
+  max-height: 220px;
   object-fit: cover;
   object-position: center center;
-  margin: 0.3rem auto 0.4rem;
+  margin: 0;
   background: transparent;
+}
+
+.lead-image-frame[data-align='top'] .story-image {
+  object-position: center top;
+}
+.lead-image-frame[data-align='center'] .story-image {
+  object-position: center center;
+}
+.lead-image-frame[data-align='bottom'] .story-image {
+  object-position: center bottom;
+}
+
+.lead-image-align {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.15rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 5;
+}
+
+.lead-image-frame:hover .lead-image-align,
+.lead-image-frame:focus-within .lead-image-align {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lead-align-btn {
+  appearance: none;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  font: 600 0.65rem/1.2 var(--sans, system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #111;
+  background: #f4f4f4;
+  border: 1px solid #333;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.lead-align-btn:hover,
+.lead-align-btn[aria-pressed='true'] {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 
 .story-thumb {
@@ -715,15 +778,24 @@ a:hover {
 }
 
 .birthdays-box .section-label,
-.history-box .section-label {
-  margin-bottom: 0.25rem;
+.history-box .section-label,
+.answers-qr .section-label {
+  margin: 0 0 0.55rem;
+  text-align: left;
+  width: 100%;
 }
 
-.feature-qr .answers-qr {
-  margin: 0 auto;
-  text-align: center;
+.feature-qr .answers-qr,
+.answers-qr {
+  margin: 0;
+  padding: 0;
+  text-align: left;
   background: transparent;
   border: 0;
+}
+
+.answers-qr-body {
+  text-align: center;
 }
 
 /* legacy class kept for older markup / print fallbacks */
@@ -961,9 +1033,45 @@ a:hover {
   justify-content: center;
 }
 
+.game-jumble .jumble-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.22rem;
+  width: 100%;
+}
+
 .game-jumble .jumble-box {
   width: 100%;
   max-width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Compact stack of three — spacing only, no rules between */
+.jumble-stack .jumble-box .section-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.62rem;
+}
+
+.jumble-stack .jumble-tiles,
+.jumble-stack .jumble-blanks {
+  --jumble-tile: 1.05rem;
+  --jumble-gap: 0.14rem;
+}
+
+.jumble-stack .jumble-blanks {
+  min-height: calc(var(--jumble-tile) + 0.35rem);
+}
+
+.jumble-stack .jumble-clue {
+  font-size: 0.68rem;
+  margin: 0 0 0.12rem;
+  line-height: 1.2;
+}
+
+.jumble-stack .jumble-word-block {
+  margin: 0;
+  gap: 0.12rem;
 }
 
 .jumble-scrambled {
@@ -978,7 +1086,7 @@ a:hover {
 .jumble-box .section-label,
 .trivia-box .section-label {
   margin-top: 0;
-  margin-bottom: 0.3rem;
+  margin-bottom: 0.55rem;
 }
 
 .games-band > .game-cell {
@@ -987,6 +1095,12 @@ a:hover {
 
 .games-band .section-label {
   line-height: 1.15;
+  margin-bottom: 0.55rem;
+}
+
+/* Stacked jumbles: keep a little air under each heading rule */
+.jumble-stack .jumble-box .section-label {
+  margin: 0 0 0.35rem;
 }
 
 .trivia-box .trivia-list {
@@ -1020,7 +1134,7 @@ a:hover {
 .comic-frame {
   min-height: 0;
   border: var(--rule-thin);
-  background: var(--paper-white);
+  background: transparent;
   padding: 0.35rem;
   font-size: 0.68rem;
   font-style: italic;
@@ -1065,12 +1179,26 @@ a:hover {
 }
 
 .comic-source {
-  margin: 0.2rem 0 0;
+  margin: 0.25rem 0 0;
+  padding: 0;
   font-style: normal;
   font-family: var(--sans-small);
-  font-size: 0.55rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  line-height: 1.15;
+  text-align: center;
+  width: 100%;
+  overflow: hidden;
+}
+
+.comic-source-url {
+  display: inline-block;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+  white-space: nowrap;
+  font-size: 0.52rem; /* JS fitComicSourceUrls may shrink further */
 }
 
 .page-folio {
@@ -1089,11 +1217,15 @@ a:hover {
 /* —— Answers QR —— */
 .answers-qr {
   border: 0;
-  padding: 0.15rem;
-  text-align: center;
+  padding: 0;
+  text-align: left;
   background: transparent;
-  margin-bottom: 0.35rem;
+  margin: 0;
   break-inside: avoid;
+}
+
+.answers-qr-body {
+  text-align: center;
 }
 
 .answers-qr-svg {
@@ -1416,8 +1548,8 @@ a:hover {
   margin: 0.25rem 0 0;
 }
 
-/* —— Responsive screen (secondary to print) —— */
-@media (max-width: 900px) {
+/* —— Responsive screen only (never apply when printing letter sheets) —— */
+@media screen and (max-width: 900px) {
   .front-pack,
   .page1-grid {
     grid-template-columns: 1fr 1.4fr;
@@ -1446,7 +1578,7 @@ a:hover {
   }
 }
 
-@media (max-width: 640px) {
+@media screen and (max-width: 640px) {
   .newspaper-shell {
     margin: 0;
     box-shadow: none;
@@ -1880,6 +2012,32 @@ a:hover {
 }
 
 
+
+/* Letter sheets always keep full feature grids (ignore viewport breakpoints) */
+.page-sheet .games-band,
+.page-sheet--features .games-band {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.9fr;
+  gap: 0.4rem;
+  align-items: start;
+}
+
+.page-sheet .features-meta-band,
+.page-sheet--features .features-meta-band {
+  display: grid;
+  grid-template-columns: 1.15fr 1.15fr 0.7fr;
+  gap: 0.4rem;
+  align-items: start;
+}
+
+.page-sheet .comics-band,
+.page-sheet--features .comics-band {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+  align-items: stretch;
+}
+
 /* Dedicated last page: features use most of the sheet (small top spacer only) */
 .page-sheet--features {
   overflow: visible;
@@ -1986,6 +2144,7 @@ body:has(#paged-edition .page-sheet) .edition-document:not(.is-source-only) {
 
   .screen-chrome,
   .screen-only,
+  .lead-image-align,
   .settings-dialog,
   .grok-paste-dialog,
   .edition-document,
@@ -2039,6 +2198,26 @@ body:has(#paged-edition .page-sheet) .edition-document:not(.is-source-only) {
   .sheet-unit,
   .sheet-unit * {
     color: #000 !important;
+  }
+
+
+  /* Keep last-page feature rows as in the digital letter preview */
+  .page-sheet .games-band,
+  .games-band {
+    display: grid !important;
+    grid-template-columns: 1.2fr 1fr 0.9fr !important;
+  }
+
+  .page-sheet .features-meta-band,
+  .features-meta-band {
+    display: grid !important;
+    grid-template-columns: 1.15fr 1.15fr 0.7fr !important;
+  }
+
+  .page-sheet .comics-band,
+  .comics-band {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
   }
 
   /* Crossword black squares must print solid */

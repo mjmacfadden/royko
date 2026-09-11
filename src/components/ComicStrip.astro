@@ -4,8 +4,11 @@ interface Props {
   comic: ComicStripData;
 }
 const { comic } = Astro.props;
+const href = comic.link || comic.imageUrl || '';
+/** Print-friendly display: drop https:// and leading www. */
+const displayUrl = href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
 ---
-<section class="comic-box" aria-label={comic.title} data-comic-id={comic.id}>
+<section class="comic-box" aria-label={comic.title} data-comic-id={comic.id} data-comic-live={comic.live ? '1' : '0'}>
   <h2 class="section-label">{comic.title}</h2>
   <div class="comic-frame">
     <div class="comic-credit">
@@ -13,22 +16,23 @@ const { comic } = Astro.props;
       {comic.live === false && <span class="comic-fallback-flag"> · feed fallback</span>}
     </div>
     {comic.imageUrl ? (
-      <a class="comic-image-link" href={comic.link || comic.imageUrl} target="_blank" rel="noopener noreferrer">
+      <a class="comic-image-link" href={href || '#'} target="_blank" rel="noopener noreferrer">
         <img
           class="comic-image"
           src={comic.imageUrl}
           alt={`${comic.title} — ${comic.caption}`}
           loading="lazy"
           referrerpolicy="no-referrer"
+          data-comic-img
         />
       </a>
     ) : (
       <p class="comic-caption-only">{comic.caption}</p>
     )}
-    {comic.link && (
+    {href ? (
       <p class="comic-source">
-        <a href={comic.link} target="_blank" rel="noopener noreferrer">Read on publisher site</a>
+        <a class="comic-source-url" href={href} target="_blank" rel="noopener noreferrer" data-fit-url>{displayUrl}</a>
       </p>
-    )}
+    ) : null}
   </div>
 </section>
