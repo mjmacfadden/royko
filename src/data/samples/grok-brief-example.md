@@ -1,58 +1,76 @@
-***Weather — Northbrook, Illinois***
-Mostly sunny after a chilly dawn. High near 67°F, low around 52°F. Light northwest breeze; good walking weather if you’re out by late morning. No rain in the afternoon window.
-Source: National Weather Service Forecast Discussion, Chicago
+## At a Glance
+- 8:30 a.m. CT: National September 11 Memorial ceremony begins in New York with reading of victims’ names.
+- 9:00 a.m. CT: President Trump attends Pentagon 9/11 remembrance.
+- 2:20 p.m. CT: Chicago Cubs host Pittsburgh Pirates at Wrigley Field.
+- Markets open lower after Thursday’s oil-driven decline.
+- Illinois flu, COVID-19 and RSV vaccine guidance issued amid federal confusion.
+- Chicago health officials warn of possible measles exposure at Union Station.
+- Glenbrook South high school football defeated Evanston 33-9 on Thursday.
+- Bears prepare for Week 1 opener at Carolina on Sunday.
+- European Central Bank raises rates 0.25 points on energy inflation.
+- Houthis seize Yemen’s Mokha port on the Red Sea.
 
-***National & World***
+## Lead Story
+### Nation marks 25th anniversary of September 11 attacks
+Ceremonies across the United States on Friday commemorate the 25th anniversary of the September 11, 2001, attacks that killed nearly 3,000 people at the World Trade Center, the Pentagon and in a Pennsylvania field. In New York, families gather at the National September 11 Memorial for the reading of victims’ names beginning at the moment the first plane struck. President Trump is scheduled to attend the Pentagon ceremony, while other officials mark the Flight 93 site in Shanksville. An additional moment of silence will honor first responders and others who later died from related illnesses. For Northbrook and North Shore residents, the day remains a moment of national reflection on security, public service and the long-term health costs still borne by survivors and families. Local communities have held or planned their own remembrances in recent days.
+*Named source: Associated Press, September 11*
 
-**U.S. destroys five Iranian tankers after attacks on a Navy ship**
-*Named source: Reuters, September 9*
-****https://pbs.twimg.com/amplify_video_thumb/2097497733732909056/img/pDq6ih9vJoy0SjBi.jpg (https://pbs.twimg.com/amplify_video_thumb/2097497733732909056/img/pDq6ih9vJoy0SjBi.jpg//)****
-The Pentagon said U.S. forces struck five Iranian-flagged tankers in the Gulf after a missile attack on a Navy destroyer overnight. Tehran denied ordering the strike; oil traffic briefly paused near the Strait of Hormuz.
+## Video Recap
+### Robotaxi isn’t scaling and FSD safety claims face fresh pushback
+Steven Mark Ryan’s latest video on the Solving The Money Problem channel examines recent commentary from Tesla skeptics who continue to argue that robotaxi deployment is not scaling and that Full Self-Driving remains unsafe, while contrasting those claims with operational data and company progress. The video also covers The Boring Company’s new valuation after a $3 billion raise that places the firm at roughly $23 billion. Ryan walks through the skeptics’ admissions on SpaceX progress alongside their continued dismissals of Cybercab and unsupervised robotaxi growth, using recent Austin fleet observations and European FSD supervised safety metrics as counterpoints. The discussion matters for investors tracking Tesla’s autonomous timeline and the broader valuation of related Elon Musk ventures, as public market and private funding narratives around robotaxi remain sharply divided. Full video available at https://www.youtube.com/watch?v=pNqc9fSqDpc.
+*Named source: Solving The Money Problem, September 11*
 
-**Oil climbs past $100 a barrel on Middle East supply fears**
-*Named source: Associated Press, September 9*
-Brent crude jumped above $100 for the first time since early summer as traders priced a wider disruption risk. U.S. pump prices are expected to firm into the weekend.
+## Local News
+### Glenbrook South defeats Evanston 33-9 in CSL South football
+Glenbrook South defeated Evanston 33-9 on Thursday in a Central Suburban League South contest, improving its record in the early portion of the 2026 season. The Titans controlled the game against a previously unbeaten Wildkits squad. The result matters for North Shore high school rankings and local followings in Glenview and surrounding communities that track weekly prep results closely.
+*Named source: Chicago Sun-Times, September 10*
 
-**Fed officials signal patience after sticky services inflation**
-*Named source: Bloomberg, September 9*
-Several policymakers said they want clearer cooling in services before cutting again. Futures pared rate-cut odds for the next meeting.
+### Chicago officials warn of possible measles exposure at Union Station
+Chicago public health officials issued a warning of possible measles exposure at Union Station after an out-of-state traveler with a confirmed case passed through the station in late August. Officials are urging anyone who was present during the relevant period and is unvaccinated or unsure of their status to monitor for symptoms and contact a physician. The alert is relevant for Northbrook and North Shore residents who regularly use Metra or Amtrak services through the downtown hub.
+*Named source: Chicago Tribune, September 10*
 
-***United States / Illinois / Chicago***
+## Business & Tech News
+### Stocks fall as oil climbs above $100 and yields rise
+U.S. stocks closed lower on Thursday, with the S&P 500 finishing at 7,591.70, down 0.58 percent, the Nasdaq Composite at 26,081.72, down 0.65 percent, and the Dow Jones Industrial Average at 52,064.10, down 0.60 percent. Oil prices surged, with Brent crude moving above $100 a barrel amid continued Middle East tensions linked to the Iran conflict, while the 10-year Treasury yield climbed to approximately 4.92–4.95 percent, its highest level in years. Higher energy costs and rate concerns weighed on equities ahead of Friday’s consumer price data. The moves matter for Illinois households and businesses already facing elevated fuel and borrowing costs.
+*Named source: Reuters, September 10*
 
-**Village reviews fall leaf collection calendar**
-*Named source: Village of Northbrook*
-Public Works posted draft 2026 zones for Northbrook, with the first sweep expected in late October. Keep piles free of branches and bagged yard waste.
+### Illinois issues its own vaccine guidance for fall respiratory viruses
+Illinois health authorities released independent guidance on flu, COVID-19 and RSV vaccines for the coming season, citing ongoing confusion over federal recommendations. The state advice aims to clarify timing and eligibility for residents. The development is significant for North Shore medical providers and families planning seasonal immunizations amid shifting national signals.
+*Named source: Chicago Tribune, September 10*
 
-**Metra reports normal Wednesday service on MD-N**
-*Named source: Metra*
-No planned slow zones affecting Northbrook station this morning.
+## National News
+### Trump pledges $5,000 dividend to adults if Republicans win midterms
+At the Republican midterm convention in Dallas, President Trump pledged that if his party retains control of the House and Senate, every American adult would receive a $5,000 dividend payment. The proposal, which analysts noted could cost more than $1 trillion, surprised some Republican lawmakers. Vice President Vance and other party figures also addressed the gathering. The promise injects a new economic talking point into the midterm campaign and will be scrutinized for fiscal feasibility and political impact in competitive districts nationwide, including those affecting Illinois representation.
+*Named source: NPR, September 10*
 
-**District 28 notes early release Thursday**
-*Named source: District 28*
-Elementary buildings dismiss early for professional development — plan after-school pickup accordingly.
+### First responders and families mark 9/11 with expanded health focus
+Beyond the formal ceremonies, attention centered on the continuing toll of 9/11-related illnesses. For the first time an additional moment of silence will recognize responders, recovery workers and survivors who have died from related diseases in the years since. Newly discussed documents and family accounts underscored ongoing questions about air quality information released after the attacks. The anniversary underscores the long-term federal and local obligations to health monitoring and compensation programs still active a quarter-century later.
+*Named source: Associated Press, September 11*
 
-***Sports***
+## Global News
+### Houthis capture strategic Yemeni port of Mokha
+Iran-backed Houthi forces seized the Red Sea port city of Mokha after government troops retreated from surrounding districts, prompting a civilian exodus toward Aden. The advance threatens shipping near the Bab el-Mandeb strait and adds pressure to already elevated global oil prices. The development matters for energy markets and international efforts to keep maritime lanes open amid the broader Middle East conflict.
+*Named source: AFP via France 24, September 10*
 
-**Bears install short-week plan after Thursday win**
-*Named source: Chicago Sports Desk*
-Practice windows are compressed; the injury report is due Wednesday afternoon.
+### Russia launches drone strikes on Ukraine, killing at least 15
+Russian drone attacks across Ukraine killed at least 15 people according to Ukrainian officials and international reports. The strikes continued a pattern of pressure on civilian infrastructure. The escalation keeps European security and energy concerns elevated as winter approaches and oil markets remain sensitive to geopolitical risk.
+*Named source: Al Jazeera, September 10*
 
-**Cubs close homestand with pitching decisions pending**
-*Named source: North Side Notes*
-A rotation spot remains unsettled for the weekend series.
+## Sports
+### Cubs fall to Brewers 6-8, complete series sweep
+The Chicago Cubs lost 6-8 to the Milwaukee Brewers on Wednesday night, completing a series sweep. Christian Yelich hit a three-run homer and the Brewers built an early lead. The Cubs fell to 81-66 and trail the Brewers by 10 games in the NL Central. They host the Pirates at 2:20 p.m. CT on Friday.
+*Named source: ESPN / Associated Press, September 10*
 
-**Youth soccer registration fills for fall rec leagues**
-*Named source: Northbrook Park District*
-Park District waitlists open Friday for U8–U12.
+### White Sox blanked by Pirates 0-2
+The Chicago White Sox lost 0-2 to the Pittsburgh Pirates on Thursday at Rate Field, managing only two hits. The defeat continued a difficult stretch for the Sox. They travel to St. Louis for their next series.
+*Named source: MLB.com, September 10*
 
-***Markets***
-Equities opened mixed with energy leading and rate-sensitive names lagging. The dollar firmed; Treasury yields edged higher on the Fed patience message. Local note: North Cook suburban office vacancies ticked down again on modest professional-services leasing.
+### Bears open regular season Sunday at Carolina
+The Chicago Bears begin the 2026 regular season on Sunday at the Carolina Panthers. No other Chicago professional teams are scheduled for games on Friday.
+*Named source: Chicago Bears official site, September 10*
 
-***What to watch today***
-- Staff meeting, 8:30 a.m. — Conference room B
-- Pick up Jack, 11:00 a.m. — school early release
-- Dentist checkup, 1:00 p.m. — Northbrook Family Dental
-- Bears injury report mid-afternoon
-- Puzzle page before dinner if the crossword still has empty squares
+### Glenbrook South tops Evanston 33-9
+Glenbrook South defeated Evanston 33-9 on Thursday in Central Suburban League South play. Glenbrook North was scheduled against Niles North later in the cycle.
+*Named source: Chicago Sun-Times, September 10*
 
-Compiled 8:42 a.m. CT from 34 sources.
+Compiled from sources.

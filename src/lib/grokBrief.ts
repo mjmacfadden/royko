@@ -67,9 +67,9 @@ function classifyHeading(heading: string): GrokSectionKind {
   if (/what to watch|to watch today|watch today|agenda/.test(h)) return 'watch';
   if (/at a glance|quick hits|\bglance\b/.test(h)) return 'glance';
   if (/\bsports?\b/.test(h)) return 'sports';
-  if (/\bmarkets?\b|business|tech\b/.test(h)) return 'markets';
+  if (/\bmarkets?\b|business|tech\b|video|recap/.test(h)) return 'markets';
   if (/illinois|chicago|united states|local|northbrook|metro/.test(h)) return 'local';
-  if (/national|world|international|global/.test(h)) return 'national';
+  if (/national|world|international|global|lead story|\blead\b/.test(h)) return 'national';
   return 'other';
 }
 
