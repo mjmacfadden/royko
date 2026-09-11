@@ -1323,20 +1323,27 @@ const hasWireStories =
         lead: bootstrap.lead ? [bootstrap.lead] : [],
         alsoToday: bootstrap.alsoToday || [],
       };
-      const storedGrok = loadGrokBrief();
-      if (storedGrok?.text) {
-        const parsed = parseGrokBrief(storedGrok.text);
-        if (parsed.structured) {
-          lastGrok = parsed;
-          composeEdition(lastRss, lastGrok);
-        } else {
-          lastGrok = null;
-          composeEdition(lastRss, null);
-          const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
-          if (ta) ta.value = storedGrok.text;
-        }
+      const urlParams = new URLSearchParams(window.location.search);
+      const isSampleParam = urlParams.has('sample');
+
+      if (isSampleParam) {
+        void loadSampleBrief();
       } else {
-        composeEdition(lastRss, null);
+        const storedGrok = loadGrokBrief();
+        if (storedGrok?.text) {
+          const parsed = parseGrokBrief(storedGrok.text);
+          if (parsed.structured) {
+            lastGrok = parsed;
+            composeEdition(lastRss, lastGrok);
+          } else {
+            lastGrok = null;
+            composeEdition(lastRss, null);
+            const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
+            if (ta) ta.value = storedGrok.text;
+          }
+        } else {
+          composeEdition(lastRss, null);
+        }
       }
 
       if (settings.rssEnabled) refreshStories(settings);

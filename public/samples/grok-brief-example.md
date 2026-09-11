@@ -12,6 +12,7 @@
 
 ## Lead Story
 ### Nation marks 25th anniversary of September 11 attacks
+!(https://i0.wp.com/www.mcny.edu/wp-content/uploads/2017/09/1.jpg?)
 Ceremonies across the United States on Friday commemorate the 25th anniversary of the September 11, 2001, attacks that killed nearly 3,000 people at the World Trade Center, the Pentagon and in a Pennsylvania field. In New York, families gather at the National September 11 Memorial for the reading of victims’ names beginning at the moment the first plane struck. President Trump is scheduled to attend the Pentagon ceremony, while other officials mark the Flight 93 site in Shanksville. An additional moment of silence will honor first responders and others who later died from related illnesses. For Northbrook and North Shore residents, the day remains a moment of national reflection on security, public service and the long-term health costs still borne by survivors and families. Local communities have held or planned their own remembrances in recent days.
 *Named source: Associated Press, September 11*
 
