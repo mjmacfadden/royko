@@ -10,10 +10,9 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",
-    "start": "node dist/server/entry.mjs"
+    "start": "astro preview"
   },
   "dependencies": {
-    "@astrojs/node": "^11.1.5",
     "@vivliostyle/print": "^2.45.1",
     "astro": "^7.3.2",
     "fast-xml-parser": "^5.11.1",

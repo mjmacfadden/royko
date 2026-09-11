@@ -1,11 +1,12 @@
 /**
  * RSS fetch + normalize → RssStory.
- * Used at build time and by /api/rss. Failures are skipped so builds never break.
+ * Used at build time and on client side. Failures are skipped so app never breaks.
  */
 import { XMLParser } from 'fast-xml-parser';
 import type { RssStory, StoryCategory } from '../data/types';
 import { NEWS_FEEDS, type FeedConfig, type FeedSection } from '../data/feeds';
 import { isSameChicagoDay } from './dateFilter';
+import { fetchWithCorsFallback } from './corsFetch';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -114,6 +115,15 @@ function sectionToCategory(section: FeedSection): StoryCategory {
   }
 }
 
+function safeIdKey(str: string): string {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 function normalizeItem(
   item: Record<string, unknown>,
   feed: FeedConfig,
@@ -129,7 +139,7 @@ function normalizeItem(
     textOf(item.pubDate ?? item.published ?? item.updated ?? item['dc:date']) ||
     new Date().toISOString();
   return {
-    id: `${feed.id}-${index}-${Buffer.from(url).toString('base64url').slice(0, 12)}`,
+    id: `${feed.id}-${index}-${safeIdKey(url)}`,
     title,
     description: excerpt(rawDesc),
     url,
@@ -158,16 +168,12 @@ export async function fetchFeed(
   feed: FeedConfig,
   opts: { todayOnly?: boolean; editionDate?: string } = {},
 ): Promise<RssStory[]> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const res = await fetch(feed.url, {
-      signal: controller.signal,
+    const res = await fetchWithCorsFallback(feed.url, {
       headers: {
-        'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; RSS reader)',
         Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
       },
-    });
+    }, 12000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const xml = await res.text();
     const doc = parser.parse(xml);
@@ -183,8 +189,8 @@ export async function fetchFeed(
       out.push(story);
     }
     return out;
-  } finally {
-    clearTimeout(timer);
+  } catch (err: any) {
+    throw err;
   }
 }
 
@@ -243,7 +249,6 @@ export async function fetchAllFeeds(opts: FetchFeedsOptions = {}): Promise<Fetch
     })),
     ...customs.map((feed) => ({
       feed,
-      // Custom feeds MUST be today-only
       todayOnly: true,
     })),
   ];

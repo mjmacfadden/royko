@@ -1,20 +1,22 @@
 /**
  * Public site base URL for QR codes and absolute links.
- * Set PUBLIC_SITE_URL in .env (e.g. https://daily-mike.example.com).
- * Falls back to http://localhost:4321 for local/dev builds.
+ * Works seamlessly with GitHub Pages subpaths (e.g. /royko/) as well as custom domains.
  */
 export function getSiteBaseUrl(): string {
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${base}`;
+  }
   const fromEnv =
     (typeof import.meta !== 'undefined' &&
       (import.meta as ImportMeta & { env?: Record<string, string> }).env?.PUBLIC_SITE_URL) ||
-    process.env.PUBLIC_SITE_URL ||
     '';
   const raw = (fromEnv || 'http://localhost:4321').trim().replace(/\/$/, '');
-  return raw;
+  return `${raw}${base}`;
 }
 
 export function answersUrlForDate(date: string): string {
-  return `${getSiteBaseUrl()}/answers/${date}`;
+  return `${getSiteBaseUrl()}/answers?date=${date}`;
 }
 
 /** Paper name — use everywhere instead of legacy Chronicle branding. */

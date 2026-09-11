@@ -4,6 +4,7 @@
  */
 import { chicagoDateKey } from './dateFilter';
 import type { AgendaItem } from '../data/types';
+import { fetchWithCorsFallback } from './corsFetch';
 
 export interface CalendarSource {
   id: string;
@@ -225,16 +226,12 @@ export function toAgendaItems(
 
 async function fetchOne(cal: CalendarSource): Promise<{ events: CalendarEvent[]; error?: string }> {
   const normalized = normalizeCalendarSource(cal);
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
   try {
-    const res = await fetch(normalized.url, {
-      signal: controller.signal,
+    const res = await fetchWithCorsFallback(normalized.url, {
       headers: {
-        'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; public ICS)',
         Accept: 'text/calendar, text/plain, application/ics, */*',
       },
-    });
+    }, 15000);
     if (res.status === 403 || res.status === 401) {
       throw new Error(
         'Calendar is not public (HTTP ' +
@@ -249,8 +246,6 @@ async function fetchOne(cal: CalendarSource): Promise<{ events: CalendarEvent[];
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return { events: [], error: msg };
-  } finally {
-    clearTimeout(timer);
   }
 }
 
@@ -301,7 +296,6 @@ export async function fetchMergedAgenda(opts: {
     }),
   );
 
-  // No working calendar → empty-state message (never invent events).
   if (!ok.length) {
     return {
       items: opts.fallback?.length ? opts.fallback : placeholderAgenda(),
@@ -314,7 +308,6 @@ export async function fetchMergedAgenda(opts: {
 
   const today = eventsForChicagoDay(all, editionDate);
   if (!today.length) {
-    // Valid link(s), just nothing on the edition day.
     return {
       items: [],
       editionDate,

@@ -21,34 +21,34 @@ Open **http://localhost:4321/**
 Print: **Print edition** (or ⌘/Ctrl+P) prints the on-screen letter page sheets. Screen chrome & settings are hidden when printing.
 
 ```bash
-npm run build    # Node SSR build → dist/
+npm run build    # Static build → dist/
 npm run preview  # preview production build
-npm start        # node dist/server/entry.mjs
+npm start        # preview production build (astro preview)
 ```
 
 ### Environment
 
 | Variable | Purpose |
 |----------|---------|
-| `PUBLIC_SITE_URL` | Absolute origin for puzzle-answer QR codes (e.g. `https://daily-mike.example.com`). Defaults to `http://localhost:4321`. |
+| `PUBLIC_SITE_URL` | Absolute origin for puzzle-answer QR codes (e.g. `https://daily-mike.example.com`). Defaults to `window.location.origin` or `http://localhost:4321`. |
 
-QR / answers URL pattern: **`{PUBLIC_SITE_URL}/answers/YYYY-MM-DD`**  
-Example: `http://localhost:4321/answers/2026-09-09`
+QR / answers URL pattern: **`{PUBLIC_SITE_URL}/answers?date=YYYY-MM-DD`**  
+Example: `http://localhost:4321/answers?date=2026-09-09`
 
 ## What’s in this phase
 
 | Area | Status |
 |------|--------|
-| Astro app + 3-page newspaper shell | ✅ |
+| Astro app + 3-page newspaper shell | ✅ 100% Client-Side |
 | Print-first continuous flow + **Vivliostyle** letter pagination (`@vivliostyle/print`, root 3-col) | ✅ |
 | Masthead one-line on screen + print (Manufacturing Consent) | ✅ |
 | Merriweather body ~10pt print / tight screen | ✅ |
-| Puzzle answers page + build-time QR (no on-paper spoilers) | ✅ |
+| Puzzle answers dynamic page + QR (`/answers?date=...`) | ✅ dynamic parameter |
 | weatherwidget.io screen + Open-Meteo B&W print strip | ✅ |
-| Live RSS ingestion (optional; **off by default**) | ✅ code kept |
+| Live RSS ingestion (optional; **off by default**) | ✅ client-side |
 | Settings panel (feeds, ZIP, comics, calendars, Grok brief) | ✅ localStorage |
-| Comics RSS (xkcd + SMBC + The Oatmeal) | ✅ best-effort hotlink |
-| Public ICS / Google embed → agenda (multi-calendar merge) | ✅ `/api/calendar` |
+| Comics RSS (xkcd + SMBC + The Oatmeal) | ✅ client-side |
+| Public ICS / Google embed → agenda (multi-calendar merge) | ✅ client-side |
 | Grok Automation paste = news backbone (RSS optional) | ✅ |
 | Page 3 games band + horizontal comics | ✅ |
 | Google Calendar OAuth | ❌ Not needed — use public ICS |
@@ -137,7 +137,7 @@ Grok items show **Brief** (plus named source when present). Optional RSS (when e
 
 ### Public calendars (ICS)
 
-No OAuth. Server route **`POST /api/calendar`** fetches ICS (avoids CORS), parses `VEVENT`, keeps events whose start falls on **today in America/Chicago**, merges all calendars, sorts by start ascending.
+No OAuth. Direct client fetch parses `VEVENT` (with CORS fallback), keeps events whose start falls on **today in America/Chicago**, merges all calendars, sorts by start ascending.
 
 **Google Calendar → public ICS / secret address**
 
@@ -152,7 +152,7 @@ Any other `.ics` URL works the same way. Empty/failed fetches fall back to the p
 
 ### News / RSS (optional)
 
-**Default: RSS off.** The edition’s stories come from the parsed Grok Automation paste. Feed catalog and `/api/rss` remain for optional re-enable in Settings.
+**Default: RSS off.** The edition’s stories come from the parsed Grok Automation paste. Feed catalog and client-side RSS parser remain for optional re-enable in Settings.
 
 Feed catalog: `src/data/feeds.ts`
 
@@ -171,8 +171,8 @@ Normalize → `RssStory` (`src/data/types.ts`). Headlines + short excerpts + sou
 ### Puzzle answers + QR
 
 - Paper puzzles **do not** reveal answers.
-- Answers: `/answers/YYYY-MM-DD` (phone-friendly).
-- QR on puzzles page (build-time SVG via `qrcode`) → answers URL.
+- Answers: `/answers?date=YYYY-MM-DD` (phone-friendly, rendered dynamically on client).
+- QR on puzzles page → dynamic answers URL with date parameter.
 
 ### Comics
 

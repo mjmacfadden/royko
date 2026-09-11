@@ -1,23 +1,20 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
 
 /**
- * Server output + per-page prerender:
- * - index / answers prerender at build (with live RSS snapshot)
- * - /api/* stay dynamic for settings-driven feed fetches (no browser CORS)
- *
- * Vivliostyle (@vivliostyle/print) is client-only via dynamic import in
- * src/lib/vivlioPrint.ts — keep it out of the SSR bundle.
+ * 100% Client-side static application for THE DAILY MIKE.
+ * - Ready for GitHub Pages, Cloudflare Pages, Netlify, Vercel, or any static host.
+ * - Set ASTRO_BASE or ASTRO_SITE via environment / repository settings if hosting under a subpath (e.g. /royko/).
  */
 export default defineConfig({
-  output: 'server',
-  adapter: node({ mode: 'standalone' }),
+  output: 'static',
+  base: process.env.ASTRO_BASE || undefined,
+  site: process.env.ASTRO_SITE || undefined,
   // Dev-only floating toolbar (audits / x-ray) — off for a clean newspaper preview
   devToolbar: { enabled: false },
   vite: {
     optimizeDeps: {
-      include: ['@vivliostyle/print'],
+      include: ['@vivliostyle/print', 'fast-xml-parser', 'qrcode'],
     },
     ssr: {
       external: ['@vivliostyle/print'],

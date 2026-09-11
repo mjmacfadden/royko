@@ -1,6 +1,4 @@
 ---
-export const prerender = false;
-
 import '../styles/newspaper.css';
 import { latestEdition } from '../data/editions/latest';
 import { puzzlesForDate } from '../data/puzzles';
@@ -132,7 +130,9 @@ const hasWireStories =
                 <div class="empty-edition" data-empty-edition>
                   <h2 class="section-label">Morning edition</h2>
                   <p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p>
-                  <p class="empty-edition-hint screen-only">Use <strong>Paste brief</strong> in the toolbar, or Settings → Grok Automation brief.</p>
+                  <p class="empty-edition-hint screen-only">
+                    Use <strong>Paste brief</strong> in the toolbar, or <button type="button" class="empty-edition-load-sample" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;padding:0;font-weight:bold;">load sample edition</button>.
+                  </p>
                 </div>
               )}
             </div>
@@ -252,8 +252,10 @@ const hasWireStories =
       } from '../lib/settings';
       import {
         normalizeCalendarUrl,
+        fetchMergedAgenda,
         type CalendarSource,
       } from '../lib/calendar';
+      import { fetchAllFeeds } from '../lib/rss';
       import {
         geoForZip,
         fetchOpenMeteoForecast,
@@ -559,7 +561,7 @@ const hasWireStories =
         return `<div class="empty-edition" data-empty-edition>
           <h2 class="section-label">Morning edition</h2>
           <p class="empty-edition-msg">Paste today’s Grok brief to fill the paper</p>
-          <p class="empty-edition-hint screen-only">Use <strong>Paste brief</strong> in the toolbar, or Settings → Grok Automation brief.</p>
+          <p class="empty-edition-hint screen-only">Use <strong>Paste brief</strong> in the toolbar, or <button type="button" class="empty-edition-load-sample" style="background:none;border:none;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;padding:0;font-weight:bold;">load sample edition</button>.</p>
         </div>`;
       }
 
@@ -808,18 +810,12 @@ const hasWireStories =
         if (status) status.textContent = 'Refreshing feeds…';
         const editionDate = document.body.dataset.editionDate || '';
         try {
-          const res = await fetch('/api/rss', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              enabledFeedIds: s.enabledFeedIds,
-              customFeeds: s.customFeeds,
-              editionDate,
-              todayOnlyBuiltIn: true,
-            }),
+          const data = await fetchAllFeeds({
+            enabledFeedIds: s.enabledFeedIds,
+            customFeeds: s.customFeeds,
+            editionDate,
+            todayOnlyBuiltIn: true,
           });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
           lastRss = {
             news: data.news?.length ? data.news.slice(0, 5) : [],
             businessTech: data.businessTech?.length ? data.businessTech.slice(0, 5) : [],
@@ -852,13 +848,7 @@ const hasWireStories =
           return;
         }
         try {
-          const res = await fetch('/api/calendar', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ calendars: s.calendars, editionDate }),
-          });
-          if (!res.ok) throw new Error(`HTTP ${res.status}`);
-          const data = await res.json();
+          const data = await fetchMergedAgenda({ calendars: s.calendars, editionDate });
           if (data.usedFallback || !Array.isArray(data.ok) || !data.ok.length) {
             renderAgenda(NO_VALID_CALENDAR);
             return;
@@ -1142,9 +1132,11 @@ const hasWireStories =
         if (ta) ta.value = '';
         applyGrokText('');
       });
-      document.getElementById('grok-brief-sample')?.addEventListener('click', async () => {
+      async function loadSampleBrief() {
         try {
-          const res = await fetch('/samples/grok-brief-example.md');
+          const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+          const sampleUrl = `${base}/samples/grok-brief-example.md`;
+          const res = await fetch(sampleUrl);
           let text = '';
           if (res.ok) text = await res.text();
           else {
@@ -1155,6 +1147,15 @@ const hasWireStories =
           if (text) applyGrokText(text);
         } catch {
           /* ignore */
+        }
+      }
+
+      document.getElementById('grok-brief-sample')?.addEventListener('click', loadSampleBrief);
+      document.addEventListener('click', (e) => {
+        const t = e.target as HTMLElement | null;
+        if (t?.closest?.('.empty-edition-load-sample')) {
+          e.preventDefault();
+          void loadSampleBrief();
         }
       });
 

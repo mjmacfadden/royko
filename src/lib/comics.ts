@@ -10,6 +10,7 @@ import {
   type ComicFeedConfig,
 } from '../data/feeds/comics';
 import type { ComicStripData } from '../data/types';
+import { fetchWithCorsFallback } from './corsFetch';
 
 const parser = new XMLParser({
   ignoreAttributes: false,
@@ -64,8 +65,6 @@ function pickImageFromHtml(html: string): string | null {
 }
 
 function pickImage(item: Record<string, unknown>): string | null {
-  // Prefer media:content, but also try media:thumbnail — New Yorker often ships
-  // an empty <media:content/> plus a real thumbnail URL.
   const mediaCandidates = [
     ...asArray(item['media:content']),
     ...asArray(item['media:thumbnail']),
@@ -100,7 +99,6 @@ function extractItems(doc: unknown): Record<string, unknown>[] {
   const feed = root.feed as Record<string, unknown> | undefined;
   if (feed) return asArray(feed.entry) as Record<string, unknown>[];
 
-  // RSS 1.0 RDF — items are siblings of channel under rdf:RDF
   const rdf = (root['rdf:RDF'] ?? root.RDF ?? root) as Record<string, unknown>;
   if (rdf && typeof rdf === 'object') {
     const items = asArray(rdf.item) as Record<string, unknown>[];
@@ -108,7 +106,6 @@ function extractItems(doc: unknown): Record<string, unknown>[] {
   }
   return [];
 }
-
 
 function pickPublishedAt(item: Record<string, unknown>): string | null {
   const raw =
@@ -124,40 +121,9 @@ function pickPublishedAt(item: Record<string, unknown>): string | null {
 
 async function imageReachable(url: string): Promise<boolean> {
   if (!url || !/^https?:\/\//i.test(url)) return false;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 8000);
-  try {
-    // Prefer GET with a tiny range — many CDNs reject or lie on HEAD.
-    const res = await fetch(url, {
-      method: 'GET',
-      redirect: 'follow',
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; comics image check)',
-        Accept: 'image/avif,image/webp,image/*,*/*;q=0.8',
-        Range: 'bytes=0-1023',
-      },
-    });
-    if (res.ok || res.status === 206) return true;
-    // Some hosts dislike Range; retry plain GET once.
-    if (res.status === 416 || res.status === 400 || res.status === 403) {
-      const res2 = await fetch(url, {
-        method: 'GET',
-        redirect: 'follow',
-        signal: controller.signal,
-        headers: {
-          'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; comics image check)',
-          Accept: 'image/*,*/*;q=0.8',
-        },
-      });
-      return res2.ok;
-    }
-    return false;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timer);
-  }
+  // In the browser, the <img> error handler in DOM acts as the reachability test.
+  // Probing images via fetch often fails due to CDN hotlinking/CORS headers.
+  return true;
 }
 
 function feedHomeUrl(feed: ComicFeedConfig): string {
@@ -194,16 +160,12 @@ function itemToStrip(
 }
 
 async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
   try {
-    const res = await fetch(feed.url, {
-      signal: controller.signal,
+    const res = await fetchWithCorsFallback(feed.url, {
       headers: {
-        'User-Agent': 'TheDailyMike/0.1 (+personal newspaper; comics RSS)',
         Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
       },
-    });
+    }, 12000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const xml = await res.text();
     if (!xml.trim()) throw new Error('empty body');
@@ -211,8 +173,6 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
     const items = extractItems(doc);
     if (!items.length) throw new Error('empty feed');
 
-    // Prefer an item with an image URL. Reachability is best-effort: many
-    // CDNs block server-side probes even when the browser can hotlink fine.
     let withImage: ComicStripData | null = null;
     for (const item of items.slice(0, 8)) {
       const strip = itemToStrip(feed, item);
@@ -222,8 +182,8 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
     }
     if (withImage) return withImage;
     throw new Error('no comic image in feed');
-  } finally {
-    clearTimeout(timer);
+  } catch (err: any) {
+    throw err;
   }
 }
 
@@ -248,7 +208,7 @@ export async function fetchComics(enabledIds?: string[] | null): Promise<ComicSt
     try {
       live.push(await fetchOne(feed));
     } catch {
-      // Skip — try the next feed so the page still fills.
+      // Skip — try next feed
     }
   }
 
