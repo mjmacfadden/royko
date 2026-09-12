@@ -22,4 +22,4 @@ export function answersUrlForDate(date: string): string {
 /** Paper name — use everywhere instead of legacy Chronicle branding. */
 export const PAPER_NAME = 'The Daily Mike';
 export const PAPER_NAME_UPPER = 'THE DAILY MIKE';
-export const PAPER_TAGLINE = 'Independent · Personal · Daily';
+export const PAPER_TAGLINE = 'NOTEWORTHY EVENTS WEATHER AND SPORTS';

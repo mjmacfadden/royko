@@ -76,7 +76,7 @@ export interface PaperSettings {
 export function defaultSettings(): PaperSettings {
   return {
     paperName: 'The Daily Mike',
-    paperTagline: 'Independent · Personal · Daily',
+    paperTagline: 'NOTEWORTHY EVENTS WEATHER AND SPORTS',
     zip: '60062',
     rssEnabled: false,
     enabledFeedIds: [],

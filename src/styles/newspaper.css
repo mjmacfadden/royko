@@ -181,12 +181,18 @@ a:hover {
   max-width: 100%;
 }
 
-.masthead-tagline {
+.masthead-tagline,
+.sheet-masthead .masthead-tagline,
+.masthead .masthead-tagline {
   font-family: var(--sans-small);
   font-size: 0.65rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  margin: 0.15rem 0 0.35rem;
+  text-align: center !important;
+  width: 100%;
+  margin: 0.15rem auto 0.35rem;
+  hyphens: none;
+  -webkit-hyphens: none;
 }
 
 .masthead-date-line {
@@ -632,6 +638,7 @@ a:hover {
   width: 100%;
   max-width: 100%;
   margin: 0.3rem auto 0.4rem;
+  user-select: none;
 }
 
 .lead-story .story-image,
@@ -644,49 +651,48 @@ a:hover {
   height: 220px;
   max-height: 220px;
   object-fit: cover;
-  object-position: center center;
+  object-position: center 50%;
   margin: 0;
   background: transparent;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-.lead-image-frame[data-align='top'] .story-image {
-  object-position: center top;
-}
-.lead-image-frame[data-align='center'] .story-image {
-  object-position: center center;
-}
-.lead-image-frame[data-align='bottom'] .story-image {
-  object-position: center bottom;
+.lead-image-frame.is-dragging .story-image,
+.lead-image-frame .story-image:active {
+  cursor: grabbing;
 }
 
-.lead-image-align {
+.lead-image-controls {
   position: absolute;
   right: 0.4rem;
   bottom: 0.4rem;
   display: flex;
-  gap: 0.2rem;
-  padding: 0.15rem;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.35rem;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.35);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
-  z-index: 5;
+  z-index: 10;
 }
 
-.lead-image-frame:hover .lead-image-align,
-.lead-image-frame:focus-within .lead-image-align {
+.lead-image-frame:hover .lead-image-controls,
+.lead-image-frame:focus-within .lead-image-controls {
   opacity: 1;
   pointer-events: auto;
 }
 
-.lead-align-btn {
+.lead-image-btn {
   appearance: none;
   margin: 0;
   padding: 0.15rem 0.4rem;
-  font: 600 0.65rem/1.2 var(--sans, system-ui, sans-serif);
+  font: 600 0.62rem/1.2 var(--sans, system-ui, sans-serif);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: #111;
@@ -694,13 +700,61 @@ a:hover {
   border: 1px solid #333;
   border-radius: 2px;
   cursor: pointer;
+  white-space: nowrap;
 }
 
-.lead-align-btn:hover,
-.lead-align-btn[aria-pressed='true'] {
+.lead-image-btn:hover {
   background: #111;
   color: #fff;
   border-color: #111;
+}
+
+.lead-image-btn.primary {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+
+.lead-image-btn.primary:hover {
+  background: #333;
+  border-color: #333;
+}
+
+.lead-image-url-bar {
+  position: absolute;
+  left: 0.4rem;
+  right: 0.4rem;
+  bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.3rem 0.4rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #1a1a1a;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  z-index: 20;
+}
+
+.lead-image-url-bar[hidden] {
+  display: none !important;
+}
+
+.lead-image-url-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--sans-small);
+  font-size: 0.72rem;
+  padding: 0.22rem 0.4rem;
+  border: 1px solid #333;
+  border-radius: 2px;
+  background: #fff;
+  color: #000;
+}
+
+.lead-image-url-input:focus {
+  outline: 1px solid #000;
+  border-color: #000;
 }
 
 .story-thumb {
@@ -2063,7 +2117,7 @@ a:hover {
 
 /* Column body copy — full justify */
 .sheet-unit .deck,
-.sheet-unit p:not(.meta):not(.source):not(.section-label):not(.lead-meta):not(.lead-hed),
+.sheet-unit p:not(.meta):not(.source):not(.section-label):not(.lead-meta):not(.lead-hed):not(.masthead-tagline):not(.answers-tagline),
 .stories-flow .deck,
 .brief-item p,
 .grok-weather-box p,
@@ -2284,7 +2338,8 @@ body:has(#paged-edition .page-sheet) .edition-document:not(.is-source-only) {
 
   .screen-chrome,
   .screen-only,
-  .lead-image-align,
+  .lead-image-controls,
+  .lead-image-url-bar,
   .comic-cycle-controls,
   .story-cycle-controls,
   .settings-dialog,

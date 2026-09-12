@@ -285,7 +285,7 @@ const hasWireStories =
       function applyPaperIdentity(name?: string, tagline?: string) {
         const cleanName = (name || 'The Daily Mike').trim();
         const upper = cleanName.toUpperCase();
-        const cleanTagline = (tagline || 'Independent · Personal · Daily').trim();
+        const cleanTagline = (tagline || 'NOTEWORTHY EVENTS WEATHER AND SPORTS').trim();
 
         const chromeName = document.getElementById('chrome-paper-name');
         if (chromeName) chromeName.textContent = upper;
@@ -313,7 +313,7 @@ const hasWireStories =
           await fillPrintWeather(settings?.zip || '60062').catch(() => undefined);
           const paperUpper = (settings?.paperName || 'The Daily Mike').trim().toUpperCase();
           const result = await paginateEdition({ paperName: paperUpper });
-          applyLeadImageAlign();
+          applyLeadImageState();
           fitComicSourceUrls();
           const total = result.pageCount || getPageSheetCount() || 1;
           if (indicator) indicator.textContent = `Page ${Math.min(current, total)} / ${total}`;
@@ -461,39 +461,59 @@ const hasWireStories =
         return `<img class="story-image" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />`;
       }
 
-      const LEAD_ALIGN_KEY = 'daily-mike-lead-image-align';
-      type LeadAlign = 'top' | 'center' | 'bottom';
+      const LEAD_POS_Y_KEY = 'daily-mike-lead-image-pos-y';
+      const LEAD_CUSTOM_URL_KEY = 'daily-mike-lead-image-custom-url';
 
-      function loadLeadAlign(): LeadAlign {
+      function loadLeadImagePosY(): number {
         try {
-          const v = localStorage.getItem(LEAD_ALIGN_KEY);
-          if (v === 'top' || v === 'center' || v === 'bottom') return v;
+          const v = localStorage.getItem(LEAD_POS_Y_KEY);
+          if (v !== null) {
+            const num = parseFloat(v);
+            if (!isNaN(num)) return Math.max(0, Math.min(100, num));
+          }
         } catch {
           /* ignore */
         }
-        return 'center';
+        return 50;
       }
 
-      function applyLeadImageAlign(align?: LeadAlign) {
-        const a = align ?? loadLeadAlign();
-        document.querySelectorAll('.lead-image-frame').forEach((frame) => {
-          frame.setAttribute('data-align', a);
-          frame.querySelectorAll('[data-lead-align]').forEach((btn) => {
-            const on = btn.getAttribute('data-lead-align') === a;
-            btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-          });
+      function loadLeadCustomUrl(): string | null {
+        try {
+          return localStorage.getItem(LEAD_CUSTOM_URL_KEY) || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function applyLeadImageState() {
+        const posY = loadLeadImagePosY();
+        const customUrl = loadLeadCustomUrl();
+        document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((frame) => {
+          const img = frame.querySelector<HTMLImageElement>('.story-image');
+          if (img) {
+            img.style.objectPosition = `center ${posY}%`;
+            if (customUrl) {
+              img.src = customUrl;
+            }
+          }
         });
       }
 
       function leadStoryImageHtml(imageUrl?: string) {
         if (!imageUrl) return '';
-        const a = loadLeadAlign();
-        return `<div class="lead-image-frame" data-align="${a}">
-          <img class="story-image" data-lead-image src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" />
-          <div class="lead-image-align" role="group" aria-label="Image crop position">
-            <button type="button" class="lead-align-btn" data-lead-align="top" title="Align top" aria-label="Align top" aria-pressed="${a === 'top'}">Top</button>
-            <button type="button" class="lead-align-btn" data-lead-align="center" title="Align center" aria-label="Align center" aria-pressed="${a === 'center'}">Center</button>
-            <button type="button" class="lead-align-btn" data-lead-align="bottom" title="Align bottom" aria-label="Align bottom" aria-pressed="${a === 'bottom'}">Bottom</button>
+        const posY = loadLeadImagePosY();
+        const customUrl = loadLeadCustomUrl();
+        const displayUrl = customUrl || imageUrl;
+        return `<div class="lead-image-frame" data-lead-frame>
+          <img class="story-image" data-lead-image data-original-src="${escapeHtml(imageUrl)}" src="${escapeHtml(displayUrl)}" alt="" loading="lazy" decoding="async" style="object-position: center ${posY}%;" />
+          <div class="lead-image-controls" role="toolbar" aria-label="Lead image options">
+            <button type="button" class="lead-image-btn" data-lead-image-change title="Change image" aria-label="Change image">Change Image</button>
+          </div>
+          <div class="lead-image-url-bar" data-lead-image-bar hidden>
+            <input type="url" class="lead-image-url-input" data-lead-image-input placeholder="Enter direct image URL..." aria-label="New lead image URL" value="${customUrl ? escapeHtml(customUrl) : ''}" />
+            <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>
+            <button type="button" class="lead-image-btn" data-lead-image-reset title="Reset to original story image">Reset</button>
+            <button type="button" class="lead-image-btn" data-lead-image-cancel>Cancel</button>
           </div>
         </div>`;
       }
@@ -631,7 +651,7 @@ const hasWireStories =
           <p class="lead-deck">${escapeHtml(story.description || '')}</p>
           <p class="lead-meta">${escapeHtml(story.source || '')}</p>
         </article>${roundupHtml}`;
-        applyLeadImageAlign();
+        applyLeadImageState();
       }
 
       const NO_VALID_CALENDAR: { time: string; title: string; note?: string }[] = [
@@ -1049,7 +1069,7 @@ const hasWireStories =
         const nameInput = document.getElementById('settings-paper-name') as HTMLInputElement | null;
         if (nameInput) nameInput.value = s.paperName || 'The Daily Mike';
         const taglineInput = document.getElementById('settings-paper-tagline') as HTMLInputElement | null;
-        if (taglineInput) taglineInput.value = s.paperTagline || 'Independent · Personal · Daily';
+        if (taglineInput) taglineInput.value = s.paperTagline || 'NOTEWORTHY EVENTS WEATHER AND SPORTS';
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         if (zipInput) zipInput.value = s.zip;
         const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
@@ -1074,7 +1094,7 @@ const hasWireStories =
         const nameInput = document.getElementById('settings-paper-name') as HTMLInputElement | null;
         const paperName = (nameInput?.value || 'The Daily Mike').trim() || 'The Daily Mike';
         const taglineInput = document.getElementById('settings-paper-tagline') as HTMLInputElement | null;
-        const paperTagline = (taglineInput?.value || 'Independent · Personal · Daily').trim() || 'Independent · Personal · Daily';
+        const paperTagline = (taglineInput?.value || 'NOTEWORTHY EVENTS WEATHER AND SPORTS').trim() || 'NOTEWORTHY EVENTS WEATHER AND SPORTS';
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         const zip = (zipInput?.value || '60062').trim();
         const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
@@ -1525,19 +1545,154 @@ const hasWireStories =
           return;
         }
 
-        const btn = t?.closest?.('[data-lead-align]') as HTMLElement | null;
-        if (!btn) return;
-        const align = btn.getAttribute('data-lead-align');
-        if (align !== 'top' && align !== 'center' && align !== 'bottom') return;
-        e.preventDefault();
-        try {
-          localStorage.setItem(LEAD_ALIGN_KEY, align);
-        } catch {
-          /* ignore */
+        // Lead image Change Image button
+        const changeBtn = t?.closest?.('[data-lead-image-change]') as HTMLElement | null;
+        if (changeBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const frame = changeBtn.closest('.lead-image-frame') as HTMLElement | null;
+          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
+          const input = frame?.querySelector<HTMLInputElement>('[data-lead-image-input]');
+          const img = frame?.querySelector<HTMLImageElement>('.story-image');
+          if (bar) {
+            bar.hidden = false;
+            if (input) {
+              input.value = img?.src || '';
+              input.focus();
+              input.select();
+            }
+          }
+          return;
         }
-        applyLeadImageAlign(align);
+
+        // Lead image Cancel URL button
+        const cancelBtn = t?.closest?.('[data-lead-image-cancel]') as HTMLElement | null;
+        if (cancelBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const bar = cancelBtn.closest<HTMLElement>('[data-lead-image-bar]');
+          if (bar) bar.hidden = true;
+          return;
+        }
+
+        // Lead image Reset URL button
+        const resetBtn = t?.closest?.('[data-lead-image-reset]') as HTMLElement | null;
+        if (resetBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const frame = resetBtn.closest<HTMLElement>('.lead-image-frame');
+          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
+          try {
+            localStorage.removeItem(LEAD_CUSTOM_URL_KEY);
+          } catch {}
+          document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((f) => {
+            const img = f.querySelector<HTMLImageElement>('.story-image');
+            const orig = img?.getAttribute('data-original-src');
+            if (img && orig) {
+              img.src = orig;
+            }
+          });
+          if (bar) bar.hidden = true;
+          schedulePaginate();
+          return;
+        }
+
+        // Lead image Save / Apply URL button
+        const saveBtn = t?.closest?.('[data-lead-image-save]') as HTMLElement | null;
+        if (saveBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const frame = saveBtn.closest<HTMLElement>('.lead-image-frame');
+          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
+          const input = frame?.querySelector<HTMLInputElement>('[data-lead-image-input]');
+          const newUrl = input?.value.trim();
+          if (newUrl) {
+            try {
+              localStorage.setItem(LEAD_CUSTOM_URL_KEY, newUrl);
+            } catch {}
+            document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((f) => {
+              const img = f.querySelector<HTMLImageElement>('.story-image');
+              if (img) {
+                img.src = newUrl;
+              }
+            });
+            if (bar) bar.hidden = true;
+            schedulePaginate();
+          }
+          return;
+        }
       });
-      applyLeadImageAlign();
+
+      // Drag-to-reposition lead image
+      let isDraggingLead = false;
+      let startPointerY = 0;
+      let startPosY = 50;
+      let activeFrame: HTMLElement | null = null;
+
+      document.addEventListener('pointerdown', (e) => {
+        const t = e.target as HTMLElement | null;
+        if (!t || !t.matches('.lead-image-frame .story-image')) return;
+        if (t.closest('[data-lead-image-bar]') || t.closest('.lead-image-controls')) return;
+        e.preventDefault();
+        const frame = t.closest<HTMLElement>('.lead-image-frame');
+        if (!frame) return;
+
+        isDraggingLead = true;
+        startPointerY = e.clientY;
+        startPosY = loadLeadImagePosY();
+        activeFrame = frame;
+        frame.classList.add('is-dragging');
+        t.setPointerCapture?.(e.pointerId);
+      });
+
+      document.addEventListener('pointermove', (e) => {
+        if (!isDraggingLead || !activeFrame) return;
+        const frameHeight = activeFrame.clientHeight || 220;
+        const dy = e.clientY - startPointerY;
+        const deltaPercent = (dy / frameHeight) * 100;
+        const newPosY = Math.max(0, Math.min(100, Math.round(startPosY - deltaPercent)));
+
+        document.querySelectorAll<HTMLImageElement>('.lead-image-frame .story-image').forEach((img) => {
+          img.style.objectPosition = `center ${newPosY}%`;
+        });
+      });
+
+      function endLeadDrag() {
+        if (!isDraggingLead) return;
+        isDraggingLead = false;
+        if (activeFrame) {
+          activeFrame.classList.remove('is-dragging');
+          const img = activeFrame.querySelector<HTMLImageElement>('.story-image');
+          if (img) {
+            const match = img.style.objectPosition.match(/center\s+(\d+(?:\.\d+)?)%/);
+            const val = match ? parseFloat(match[1]) : 50;
+            const valid = isNaN(val) ? 50 : Math.max(0, Math.min(100, val));
+            try {
+              localStorage.setItem(LEAD_POS_Y_KEY, String(valid));
+            } catch {}
+          }
+        }
+        activeFrame = null;
+      }
+
+      document.addEventListener('pointerup', endLeadDrag);
+      document.addEventListener('pointercancel', endLeadDrag);
+
+      document.addEventListener('keydown', (e) => {
+        const input = e.target as HTMLElement | null;
+        if (!input || !input.matches('[data-lead-image-input]')) return;
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const frame = input.closest<HTMLElement>('.lead-image-frame');
+          frame?.querySelector<HTMLElement>('[data-lead-image-save]')?.click();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          const frame = input.closest<HTMLElement>('.lead-image-frame');
+          frame?.querySelector<HTMLElement>('[data-lead-image-cancel]')?.click();
+        }
+      });
+
+      applyLeadImageState();
 
       void applyWeather(settings.zip);
       window.addEventListener('beforeprint', () => {
