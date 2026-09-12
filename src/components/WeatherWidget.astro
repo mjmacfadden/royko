@@ -1,62 +1,50 @@
 ---
 import type { WeatherConfig } from '../data/types';
+import {
+  renderHourlyWeatherSlotsHtml,
+  renderDaySummaryHtml,
+  type HourlySlot,
+  type DaySummary,
+} from '../lib/weather';
+
 interface Props {
   weather: WeatherConfig;
 }
-const { weather } = Astro.props;
-/** Default Northbrook forecast7 embed; client updates from Settings ZIP. */
-const widgetHref = 'https://forecast7.com/en/42d13n87d83/northbrook/';
-/**
- * weatherwidget.io: flat "pure" theme + zero-alpha fills + black ink.
- * Cross-origin iframe may still paint opaque white internally; CSS mix-blend-mode
- * + grayscale filter knock color/white out against cream paper.
- * Print never relies on this iframe — see .weather-print below.
- */
-const theme = 'pure';
-const basecolor = 'rgba(0,0,0,0)';
-const textcolor = '#000000';
-const accent = 'rgba(0,0,0,0)';
----
-<section class="weather-strip" aria-label="Weather" data-weather-root data-default-zip={weather.zip}>
-  <!-- Screen: weatherwidget.io interactive embed (below masthead) — grayscale / black -->
-  <div class="weather-widget-live screen-only">
-    <a
-      class="weatherwidget-io"
-      href={widgetHref}
-      data-label_1="NORTHBROOK"
-      data-label_2="WEATHER"
-      data-theme={theme}
-      data-basecolor={basecolor}
-      data-textcolor={textcolor}
-      data-highcolor={textcolor}
-      data-lowcolor="#000000"
-      data-accent={accent}
-      data-days="5"
-      >NORTHBROOK WEATHER</a
-    >
-    <p class="weather-widget-status" data-weather-status hidden></p>
-  </div>
 
-  <!--
-    Print / no-JS: B&W multi-day strip (filled by Open-Meteo client-side).
-    Always present so @media print never leaves a blank weather hole.
-  -->
-  <div class="weather-print" data-weather-print>
-    <h2 class="section-label">Weather · <span data-weather-label>{weather.locationLabel}</span></h2>
-    <div class="weather-print-strip" data-weather-print-strip>
-      <div class="weather-print-day">
-        <span class="wpd-day">Today</span>
-        <span class="wpd-cond">{weather.fallback.summary}</span>
-        <span class="wpd-temps">{weather.fallback.highF}° / {weather.fallback.lowF}°</span>
-      </div>
+const { weather } = Astro.props;
+
+const defaultSummary: DaySummary = {
+  highF: weather.fallback.highF || 76,
+  lowF: weather.fallback.lowF || 58,
+  condition: weather.fallback.summary || 'Partly cloudy',
+  weatherCode: 2,
+};
+
+// Initial SSR fallback slots
+const defaultSlots: HourlySlot[] = [
+  { time: '06:00', hourLabel: '6 AM', tempF: weather.fallback.lowF || 58, condition: 'Clear', weatherCode: 0 },
+  { time: '08:00', hourLabel: '8 AM', tempF: Math.round(((weather.fallback.lowF || 58) * 2 + (weather.fallback.highF || 76)) / 3), condition: 'Clear', weatherCode: 0 },
+  { time: '10:00', hourLabel: '10 AM', tempF: Math.round(((weather.fallback.lowF || 58) + (weather.fallback.highF || 76) * 2) / 3), condition: 'Partly cloudy', weatherCode: 2 },
+  { time: '12:00', hourLabel: '12 PM', tempF: weather.fallback.highF || 76, condition: 'Partly cloudy', weatherCode: 2 },
+  { time: '14:00', hourLabel: '2 PM', tempF: weather.fallback.highF || 76, condition: 'Clear', weatherCode: 0 },
+  { time: '16:00', hourLabel: '4 PM', tempF: (weather.fallback.highF || 76) - 2, condition: 'Clear', weatherCode: 0 },
+  { time: '18:00', hourLabel: '6 PM', tempF: (weather.fallback.highF || 76) - 5, condition: 'Partly cloudy', weatherCode: 2 },
+  { time: '20:00', hourLabel: '8 PM', tempF: (weather.fallback.lowF || 58) + 6, condition: 'Clear', weatherCode: 0 },
+  { time: '22:00', hourLabel: '10 PM', tempF: (weather.fallback.lowF || 58) + 2, condition: 'Clear', weatherCode: 0 },
+];
+
+const initialSummaryHtml = renderDaySummaryHtml(defaultSummary);
+const initialSlotsHtml = renderHourlyWeatherSlotsHtml(defaultSlots);
+---
+<section class="weather-strip" aria-label="Hourly Weather" data-weather-root data-default-zip={weather.zip}>
+  <div class="weather-hourly-bar" data-weather-bar>
+    <div class="weather-badge">
+      <span class="weather-badge-loc" data-weather-label>{weather.locationLabel || 'NORTHBROOK, IL'}</span>
+      <span class="weather-badge-sub">HOURLY FORECAST</span>
     </div>
-    <p class="weather-print-grok" data-print-weather-body hidden></p>
-    <p class="weather-print-source" data-weather-print-source>
-      ZIP <span data-weather-zip>{weather.zip}</span> · forecast loads with edition
-    </p>
+    <div class="weather-summary-day" data-weather-summary set:html={initialSummaryHtml}></div>
+    <div class="weather-slots" data-weather-slots set:html={initialSlotsHtml}></div>
   </div>
+  <p class="weather-widget-status" data-weather-status hidden></p>
 </section>
 
-<script is:inline>
-!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src='https://weatherwidget.io/js/widget.min.js';fjs.parentNode.insertBefore(js,fjs);}}(document,'script','weatherwidget-io-js');
-</script>

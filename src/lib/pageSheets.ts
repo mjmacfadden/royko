@@ -562,6 +562,20 @@ function advanceColumn(host: HTMLElement, state: SheetState, paperName = 'THE DA
   return createSheet(host, state.pageNumber + 1, false, paperName);
 }
 
+function isListOverflowing(box: HTMLElement, list: HTMLElement): boolean {
+  if (box.clientHeight <= 0 || list.clientHeight <= 0) return false;
+  if (box.scrollHeight - box.clientHeight > 0.5) return true;
+  if (list.scrollHeight - list.clientHeight > 0.5) return true;
+  const lis = list.querySelectorAll<HTMLLIElement>('li');
+  if (!lis.length) return false;
+  const lastLi = lis[lis.length - 1];
+  const listRect = list.getBoundingClientRect();
+  const lastLiRect = lastLi.getBoundingClientRect();
+  if (lastLiRect.bottom - listRect.bottom > 0.5) return true;
+  if (lastLi.offsetTop + lastLi.offsetHeight - list.clientHeight > 0.5) return true;
+  return false;
+}
+
 export function fitGlanceBox(box: HTMLElement | null) {
   if (!box) return;
   const list = box.querySelector<HTMLElement>('.glance-list');
@@ -571,60 +585,91 @@ export function fitGlanceBox(box: HTMLElement | null) {
   if (!allLis.length) return;
 
   // If container fits cleanly, no truncation needed
-  if (box.scrollHeight <= box.clientHeight + 1) {
+  if (!isListOverflowing(box, list)) {
     return;
   }
 
+  const originalTexts = allLis.map((li) => (li.textContent || '').trim());
   let lis = [...allLis];
-  let hadTruncation = false;
 
-  // 1. Remove overflowing full list items from the end
-  while (lis.length > 1 && box.scrollHeight > box.clientHeight + 1) {
-    const last = lis.pop()!;
-    last.remove();
-    hadTruncation = true;
-  }
+  // While overflowing, check if the last li is completely out or needs removal/trimming
+  while (lis.length > 0 && isListOverflowing(box, list)) {
+    const lastIndex = lis.length - 1;
+    const lastLi = lis[lastIndex];
+    const fullText = originalTexts[lastIndex] || (lastLi.textContent || '').trim();
 
-  // 2. If still overflowing or if items were removed, ensure last line ends with ...
-  const lastLi = lis[lis.length - 1];
-  if (lastLi) {
-    const text = (lastLi.textContent || '').replace(/\s*\.{3}$/, '').trim();
-    const words = text.split(/\s+/);
+    // If the top of the last li is already beyond the visible list height, remove it entirely
+    const listRect = list.getBoundingClientRect();
+    const lastLiRect = lastLi.getBoundingClientRect();
+    const isPastBottom =
+      (lastLiRect.top >= listRect.bottom - 4) ||
+      (lastLi.offsetTop >= list.clientHeight - 4);
+
+    if (isPastBottom && lis.length > 1) {
+      lastLi.remove();
+      lis.pop();
+      continue;
+    }
+
+    // Try to trim the last li word by word with "..."
+    const words = fullText.replace(/\s*\.{3}$/, '').trim().split(/\s+/);
     let lo = 0;
     let hi = words.length;
-    let bestText = text + '...';
+    let bestWords = -1;
 
     while (lo <= hi) {
       const mid = Math.floor((lo + hi) / 2);
-      const candidate = words.slice(0, mid).join(' ') + (mid > 0 ? '...' : '');
+      const candidate = words.slice(0, mid).join(' ') + (mid > 0 ? '...' : '...');
       lastLi.textContent = candidate;
-      if (box.scrollHeight <= box.clientHeight + 1) {
-        bestText = candidate;
+      if (!isListOverflowing(box, list)) {
+        bestWords = mid;
         lo = mid + 1;
       } else {
         hi = mid - 1;
       }
     }
 
-    if (box.scrollHeight > box.clientHeight + 1 && words.length) {
-      const firstWord = words[0];
-      let cLo = 0;
-      let cHi = firstWord.length;
-      bestText = '...';
-      while (cLo <= cHi) {
-        const cMid = Math.floor((cLo + cHi) / 2);
-        const candidate = firstWord.slice(0, cMid) + '...';
-        lastLi.textContent = candidate;
-        if (box.scrollHeight <= box.clientHeight + 1) {
-          bestText = candidate;
-          cLo = cMid + 1;
-        } else {
-          cHi = cMid - 1;
-        }
+    if (bestWords >= 1) {
+      lastLi.textContent = words.slice(0, bestWords).join(' ') + '...';
+      break;
+    }
+
+    // If word-by-word didn't fit, try character-by-character on the first word
+    const firstWord = words[0] || '';
+    let cLo = 1;
+    let cHi = firstWord.length;
+    let bestChars = -1;
+
+    while (cLo <= cHi) {
+      const cMid = Math.floor((cLo + cHi) / 2);
+      const candidate = firstWord.slice(0, cMid) + '...';
+      lastLi.textContent = candidate;
+      if (!isListOverflowing(box, list)) {
+        bestChars = cMid;
+        cLo = cMid + 1;
+      } else {
+        cHi = cMid - 1;
       }
     }
 
-    lastLi.textContent = bestText;
+    if (bestChars >= 1) {
+      lastLi.textContent = firstWord.slice(0, bestChars) + '...';
+      break;
+    }
+
+    // If even 1 char + '...' doesn't fit, remove this li entirely
+    if (lis.length > 1) {
+      lastLi.remove();
+      lis.pop();
+    } else {
+      // Only 1 li left and it doesn't fit at all
+      lastLi.textContent = '...';
+      if (isListOverflowing(box, list)) {
+        lastLi.remove();
+        lis.pop();
+      }
+      break;
+    }
   }
 }
 
@@ -651,6 +696,8 @@ export async function paginateEdition(options: { paperName?: string } = {}): Pro
   const bannerHost = state.sheet.querySelector('.page-sheet-banner');
   if (bannerHost) {
     banner.forEach((unit) => bannerHost.appendChild(unit));
+    // Force layout of banner first so glance box flex dimensions are computed!
+    void state.sheet.offsetHeight;
     const glanceBox = state.sheet.querySelector<HTMLElement>('.grok-glance-box');
     if (glanceBox) {
       fitGlanceBox(glanceBox);
