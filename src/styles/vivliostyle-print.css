@@ -116,24 +116,14 @@ a[href]::after {
   margin: 0;
 }
 
-/* Strip / hide screen-only remnants */
 .screen-only,
 .screen-chrome,
 .settings-dialog,
-.weather-widget-live,
-.weatherwidget-io,
 .feed-status-note,
 .empty-column,
 .page3-grid,
 .answers-qr-url {
   display: none !important;
-}
-
-.weather-print,
-.weather-fallback {
-  display: block !important;
-  color: #000 !important;
-  background: transparent !important;
 }
 
 /* —— Masthead —— */
@@ -194,69 +184,126 @@ a[href]::after {
 
 /* —— Weather print strip —— */
 .weather-strip {
-  border: var(--rule-thin);
-  padding: 0.15rem 0.25rem;
+  border-top: var(--rule-double);
+  border-bottom: var(--rule-thin);
+  padding: 0.12rem 0.25rem;
+  margin: 0 0 0.3rem;
   background: transparent;
+  color: #000;
 }
 
-.weather-print {
-  font-family: var(--sans-small);
-  font-size: 8pt;
-  line-height: 1.25;
-}
-
-.weather-print-strip {
+.weather-hourly-bar {
   display: flex;
-  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
-  border-top: 1px solid #000;
-  border-bottom: 1px solid #000;
+  gap: 0.35rem;
+  white-space: nowrap;
+  line-height: 1;
 }
 
-.weather-print-day {
-  flex: 1 1 0;
-  min-width: 0;
-  padding: 0.15rem 0.2rem;
+.weather-badge {
+  display: inline-flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-shrink: 0;
+  padding-right: 0.35rem;
   border-right: 1px solid #000;
-  text-align: center;
 }
 
-.weather-print-day:last-child {
-  border-right: 0;
-}
-
-.weather-print-day .wpd-day {
-  display: block;
+.weather-badge-loc {
+  font-family: var(--sans-small);
   font-size: 6.5pt;
-  letter-spacing: 0.12em;
+  font-weight: 800;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+
+.weather-badge-sub {
+  font-family: var(--sans-small);
+  font-size: 5pt;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.weather-summary-day {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  flex-shrink: 0;
+  padding: 0 0.35rem;
+  border-right: 1px solid #000;
+  font-family: var(--sans-small);
+}
+
+.weather-slots {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-grow: 1;
+  min-width: 0;
+  gap: 0.12rem;
+}
+
+.weather-slot {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  padding: 0 0.25rem;
+  border-right: 1px dotted rgba(0, 0, 0, 0.35);
+  font-family: var(--sans-small);
+  font-size: 6.8pt;
+  line-height: 1;
+}
+
+.weather-slot:last-child {
+  border-right: none;
+}
+
+.ws-hour {
   font-weight: 700;
+  font-size: 5.5pt;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
 }
 
-.weather-print-day .wpd-cond {
-  display: block;
-  font-size: 7.5pt;
-  line-height: 1.2;
+.ws-bottom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
 }
 
-.weather-print-day .wpd-temps {
-  display: block;
+.ws-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 9pt;
+  height: 9pt;
+  color: #000;
+}
+
+.ws-icon svg {
+  width: 9pt;
+  height: 9pt;
+  stroke: #000;
+  fill: none;
+}
+
+.ws-temp {
   font-family: var(--serif-display);
-  font-size: 10pt;
+  font-size: 7.5pt;
   font-weight: 700;
 }
 
-.weather-print-grok {
-  margin: 0.2rem 0 0;
+.wsd-temps {
+  font-family: var(--serif-display);
   font-size: 7.5pt;
-  line-height: 1.25;
-}
-
-.weather-print-source {
-  margin: 0.12rem 0 0;
-  font-size: 6pt;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-weight: 700;
 }
 
 /* —— Front pack (page float): rail + lead —— */

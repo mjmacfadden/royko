@@ -244,7 +244,6 @@ const hasWireStories =
         loadGrokBrief,
         saveGrokBrief,
         clearGrokBrief,
-        forecast7UrlForZip,
         buildLocalStorageBundle,
         parseLocalStorageBundle,
         applyLocalStorageBundle,
@@ -259,8 +258,9 @@ const hasWireStories =
       import { fetchAllFeeds } from '../lib/rss';
       import {
         geoForZip,
-        fetchOpenMeteoForecast,
-        renderPrintWeatherStripHtml,
+        fetchOpenMeteoWeather,
+        renderDaySummaryHtml,
+        renderHourlyWeatherSlotsHtml,
       } from '../lib/weather';
       import {
         parseGrokBrief,
@@ -416,96 +416,36 @@ const hasWireStories =
         el.textContent = msg;
       }
 
-      /** Wipe weatherwidget.io iframe/DOM and re-run its loader IIFE for a new location. */
-      function reinjectWeatherWidget(href: string, label1: string) {
-        const live = document.querySelector('.weather-widget-live');
-        if (!live) return;
-        // Remove script so the loader runs again (skips if #weatherwidget-io-js exists).
-        document.getElementById('weatherwidget-io-js')?.remove();
-        // Drop prior iframe / injected nodes from weatherwidget.io.
-        live.innerHTML = '';
-        const a = document.createElement('a');
-        a.className = 'weatherwidget-io';
-        a.href = href;
-        a.setAttribute('data-label_1', label1);
-        a.setAttribute('data-label_2', 'WEATHER');
-        // Flat "pure" theme + black ink + transparent fills (grayscale CSS on container).
-        // Do not set data-mode="Current" — keep multi-day forecast default.
-        a.setAttribute('data-theme', 'pure');
-        a.setAttribute('data-basecolor', 'rgba(0,0,0,0)');
-        a.setAttribute('data-textcolor', '#000000');
-        a.setAttribute('data-highcolor', '#000000');
-        a.setAttribute('data-lowcolor', '#000000');
-        a.setAttribute('data-accent', 'rgba(0,0,0,0)');
-        a.setAttribute('data-shadow', '');
-        a.setAttribute('data-days', '5');
-        a.textContent = `${label1} WEATHER`;
-        live.appendChild(a);
-        const statusEl = document.createElement('p');
-        statusEl.className = 'weather-widget-status';
-        statusEl.setAttribute('data-weather-status', '');
-        statusEl.hidden = true;
-        live.appendChild(statusEl);
-
-        const script = document.createElement('script');
-        script.id = 'weatherwidget-io-js';
-        script.src = 'https://weatherwidget.io/js/widget.min.js';
-        const first = document.getElementsByTagName('script')[0];
-        if (first?.parentNode) first.parentNode.insertBefore(script, first);
-        else document.body.appendChild(script);
-      }
-
-      /** Fill print B&W multi-day strip via Open-Meteo (iframes don't print reliably). */
-      async function fillPrintWeather(zip: string) {
-        const strip = document.querySelector('[data-weather-print-strip]');
-        const source = document.querySelector('[data-weather-print-source]');
-        if (!strip) return;
+      /** Fill hourly forecast bar and day summary via Open-Meteo (works identically for screen and print). */
+      async function applyWeather(zip: string) {
+        const label = document.querySelector('[data-weather-label]');
+        const summaryEl = document.querySelector('[data-weather-summary]');
+        const slotsEl = document.querySelector('[data-weather-slots]');
 
         const geo = await geoForZip(zip);
-        const days = await fetchOpenMeteoForecast(geo.lat, geo.lon, 5);
-        if (days?.length) {
-          strip.innerHTML = renderPrintWeatherStripHtml(days, escapeHtml);
-          if (source) {
-            source.innerHTML = `ZIP <span data-weather-zip>${escapeHtml(zip)}</span> · Open-Meteo · black ink`;
-          }
-          return;
-        }
-
-        // Keep SSR static day + optional Grok prose already in [data-print-weather-body]
-        const fb = bootstrap.weatherFallback as
-          | { highF?: number; lowF?: number; summary?: string }
-          | undefined;
-        if (fb && (fb.highF != null || fb.summary)) {
-          strip.innerHTML = `<div class="weather-print-day">
-  <span class="wpd-day">Today</span>
-  <span class="wpd-cond">${escapeHtml(fb.summary || 'Forecast')}</span>
-  <span class="wpd-temps">${Number(fb.highF) || '—'}° / ${Number(fb.lowF) || '—'}°</span>
-</div>`;
-        }
-        if (source) {
-          source.innerHTML = `ZIP <span data-weather-zip>${escapeHtml(zip)}</span> · fallback (Open-Meteo unavailable)`;
-        }
-      }
-
-      async function applyWeather(zip: string) {
-        const zipEl = document.querySelector('[data-weather-zip]');
-        const label = document.querySelector('[data-weather-label]');
-        if (zipEl) zipEl.textContent = zip;
-
-        const result = await forecast7UrlForZip(zip);
         if (label) {
-          label.textContent = result.stateAbbr
-            ? `${result.city}, ${result.stateAbbr}`
-            : result.city;
+          label.textContent = geo.stateAbbr
+            ? `${geo.city.toUpperCase()}, ${geo.stateAbbr}`
+            : geo.city.toUpperCase();
         }
-        reinjectWeatherWidget(result.url, result.label);
-        await fillPrintWeather(zip);
-        if (result.fromFallback) {
-          setWeatherStatus(`Could not look up ZIP ${zip}; showing Northbrook.`);
-        } else {
+
+        const weatherData = await fetchOpenMeteoWeather(geo.lat, geo.lon);
+        if (weatherData) {
+          if (summaryEl) {
+            summaryEl.innerHTML = renderDaySummaryHtml(weatherData.summary, escapeHtml);
+          }
+          if (slotsEl) {
+            slotsEl.innerHTML = renderHourlyWeatherSlotsHtml(weatherData.hourly, escapeHtml);
+          }
           setWeatherStatus(null);
+        } else if (zip !== '60062' && !geo) {
+          setWeatherStatus(`Could not look up ZIP ${zip}; showing Northbrook.`);
         }
         schedulePaginate();
+      }
+
+      async function fillPrintWeather(zip: string) {
+        await applyWeather(zip);
       }
 
       function escapeHtml(t: string) {
