@@ -12,12 +12,37 @@ const { story } = Astro.props;
   <p class="lead-deck">{story.description}</p>
   <div class="lead-meta">{story.source} · {story.category}</div>
   {story.image ? (
-    <div class="lead-image-frame" data-align="center">
-      <img class="story-image" data-lead-image src={story.image} alt="" loading="lazy" />
-      <div class="lead-image-align" role="group" aria-label="Image crop position">
-        <button type="button" class="lead-align-btn" data-lead-align="top" title="Align top" aria-label="Align top" aria-pressed="false">Top</button>
-        <button type="button" class="lead-align-btn" data-lead-align="center" title="Align center" aria-label="Align center" aria-pressed="true">Center</button>
-        <button type="button" class="lead-align-btn" data-lead-align="bottom" title="Align bottom" aria-label="Align bottom" aria-pressed="false">Bottom</button>
+    <div class="lead-image-frame" data-lead-frame>
+      <img
+        class="story-image"
+        data-lead-image
+        data-original-src={story.image}
+        src={story.image}
+        alt=""
+        loading="lazy"
+      />
+      <div class="lead-image-controls" role="toolbar" aria-label="Lead image options">
+        <button
+          type="button"
+          class="lead-image-btn"
+          data-lead-image-change
+          title="Change image"
+          aria-label="Change image"
+        >
+          Change Image
+        </button>
+      </div>
+      <div class="lead-image-url-bar" data-lead-image-bar hidden>
+        <input
+          type="url"
+          class="lead-image-url-input"
+          data-lead-image-input
+          placeholder="Enter direct image URL..."
+          aria-label="New lead image URL"
+        />
+        <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>
+        <button type="button" class="lead-image-btn" data-lead-image-reset title="Reset to original story image">Reset</button>
+        <button type="button" class="lead-image-btn" data-lead-image-cancel>Cancel</button>
       </div>
     </div>
   ) : null}
