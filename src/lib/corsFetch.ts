@@ -28,7 +28,6 @@ export async function fetchWithCorsFallback(
     if (/^https?:\/\//i.test(url)) {
       const proxies = [
         `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-        `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
       ];
 
       for (const proxyUrl of proxies) {
@@ -39,7 +38,7 @@ export async function fetchWithCorsFallback(
               ...(options.headers || {}),
               Accept: '*/*',
             },
-            signal: controller.signal,
+            signal: AbortSignal.timeout(4000),
           });
           if (proxyRes.ok) {
             return proxyRes;

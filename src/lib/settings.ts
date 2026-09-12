@@ -96,22 +96,27 @@ export function loadSettings(): PaperSettings {
     const enabledFeedIds = Array.isArray(parsed.enabledFeedIds)
       ? parsed.enabledFeedIds.filter((id) => typeof id === 'string')
       : base.enabledFeedIds;
-    // Explicit flag wins; otherwise infer from whether any feeds are checked
+    // Explicit flag wins; otherwise infer from whether any feeds are checked or custom feeds exist
+    const customFeeds: CustomFeed[] = Array.isArray(parsed.customFeeds)
+      ? parsed.customFeeds
+          .filter((f) => f && typeof f.url === 'string' && f.url.startsWith('http'))
+          .map((f) => ({
+            id: String(f.id || `custom-${Date.now()}`),
+            name: String(f.name || 'Custom'),
+            url: String(f.url),
+          }))
+      : [];
     const rssEnabled =
       typeof parsed.rssEnabled === 'boolean'
         ? parsed.rssEnabled
-        : enabledFeedIds.length > 0 || (Array.isArray(parsed.customFeeds) && parsed.customFeeds.length > 0);
+        : enabledFeedIds.length > 0 || customFeeds.length > 0;
     return {
       paperName: typeof parsed.paperName === 'string' && parsed.paperName.trim() ? parsed.paperName.trim() : base.paperName,
       paperTagline: typeof parsed.paperTagline === 'string' && parsed.paperTagline.trim() ? parsed.paperTagline.trim() : base.paperTagline,
       zip: typeof parsed.zip === 'string' && /^\d{5}$/.test(parsed.zip) ? parsed.zip : base.zip,
       rssEnabled,
       enabledFeedIds,
-      customFeeds: Array.isArray(parsed.customFeeds)
-        ? parsed.customFeeds.filter(
-            (f) => f && typeof f.url === 'string' && f.url.startsWith('http'),
-          )
-        : [],
+      customFeeds,
       enabledComicIds: withNewComicDefaults(
         Array.isArray(parsed.enabledComicIds)
           ? parsed.enabledComicIds.filter((id) => typeof id === 'string')

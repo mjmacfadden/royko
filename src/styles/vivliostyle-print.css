@@ -403,7 +403,7 @@ a[href]::after {
   max-height: 1.55in;
   height: auto;
   object-fit: contain;
-  margin: 0.2rem 0 0.25rem;
+  margin: 0.2rem auto 0.25rem;
   page-break-inside: avoid;
 }
 

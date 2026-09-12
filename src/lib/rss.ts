@@ -42,25 +42,109 @@ function textOf(v: unknown): string {
   return '';
 }
 
-function stripHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, '')
-    .replace(/<style[\s\S]*?<\/style>/gi, '')
-    .replace(/<[^>]+>/g, ' ')
+function decodeHtmlEntities(s: string): string {
+  return s
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(Number(dec)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&mdash;/gi, '—')
+    .replace(/&ndash;/gi, '–')
+    .replace(/&hellip;/gi, '…')
+    .replace(/&lsquo;|&rsquo;/gi, "'")
+    .replace(/&ldquo;|&rdquo;/gi, '"')
     .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
     .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/&gt;/g, '>');
 }
 
-function excerpt(text: string, max = 220): string {
-  const t = stripHtml(text);
-  if (t.length <= max) return t;
-  return t.slice(0, max - 1).replace(/\s+\S*$/, '') + '…';
+function stripHtml(html: string): string {
+  const cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<div class="subscription-widget[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    .replace(/<figure[\s\S]*?<\/figure>/gi, '')
+    .replace(/<figcaption[\s\S]*?<\/figcaption>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return decodeHtmlEntities(cleaned);
+}
+
+function cleanParagraphHtml(html: string): string {
+  const cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<div class="subscription-widget[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    .replace(/<figure[\s\S]*?<\/figure>/gi, '')
+    .replace(/<figcaption[\s\S]*?<\/figcaption>/gi, '')
+    .replace(/<a class="footnote-anchor"[\s\S]*?<\/a>/gi, '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return decodeHtmlEntities(cleaned);
+}
+
+export function extractStoryBlocks(descRaw: string, contentRaw: string): {
+  blocks: StoryContentBlock[];
+  paragraphs: string[];
+  leadImage: string | null;
+} {
+  const subtitle = cleanParagraphHtml(descRaw || '');
+  const html = (contentRaw || '').trim() || (descRaw || '').trim();
+
+  const cleanHtml = html
+    .replace(/<div class="subscription-widget[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    .replace(/<div class="pencraft[\s\S]*?<\/div>\s*<\/div>/gi, '')
+    .replace(/<a class="footnote-anchor"[\s\S]*?<\/a>/gi, '');
+
+  const tokens = cleanHtml.split(/(<img[^>]+src=["'][^"']+["'][^>]*>)/gi);
+  const rawBlocks: StoryContentBlock[] = [];
+  const paragraphs: string[] = [];
+  let leadImage: string | null = null;
+
+  if (subtitle && subtitle.length > 5) {
+    rawBlocks.push({ type: 'paragraph', text: subtitle });
+    paragraphs.push(subtitle);
+  }
+
+  for (const token of tokens) {
+    if (!token.trim()) continue;
+    const imgMatch = token.match(/<img[^>]+src=["']([^"']+)["']/i);
+    if (imgMatch) {
+      const src = imgMatch[1];
+      if (src && !src.includes('tracker') && !src.includes('beacon') && !src.includes('data:image/svg')) {
+        rawBlocks.push({ type: 'image', src });
+        if (!leadImage) leadImage = src;
+      }
+    } else {
+      const paras = token
+        .replace(/<br\s*\/?>/gi, '\n')
+        .split(/<\/(?:p|h[1-6]|blockquote|li|div|figure)>\s*|<hr\s*\/?>|\n\s*\n/i)
+        .map((p) => cleanParagraphHtml(p))
+        .filter((p) => {
+          if (!p || p.length < 2) return false;
+          if (/^(?:subscribe|restack|share this post|leave a comment)\b/i.test(p)) return false;
+          if (p.includes('pencraft') || p.includes('data-component-name')) return false;
+          return true;
+        });
+      for (const p of paras) {
+        rawBlocks.push({ type: 'paragraph', text: p });
+        paragraphs.push(p);
+      }
+    }
+  }
+
+  if (!rawBlocks.length) {
+    const fallback = cleanParagraphHtml(descRaw || contentRaw || '');
+    if (fallback) {
+      rawBlocks.push({ type: 'paragraph', text: fallback });
+      paragraphs.push(fallback);
+    }
+  }
+
+  return { blocks: rawBlocks, paragraphs, leadImage };
 }
 
 function pickLink(item: Record<string, unknown>): string {
@@ -132,18 +216,21 @@ function normalizeItem(
   const title = stripHtml(textOf(item.title));
   const url = pickLink(item);
   if (!title || !url) return null;
-  const rawDesc = textOf(
-    item.description ?? item.summary ?? item.content ?? item['content:encoded'] ?? '',
-  );
+  const rawDesc = textOf(item.description ?? item.summary ?? '');
+  const rawContent = textOf(item['content:encoded'] ?? item.content ?? '');
+  const { blocks, paragraphs, leadImage } = extractStoryBlocks(rawDesc, rawContent);
+  const image = pickImage(item) || leadImage;
   const publishedAt =
     textOf(item.pubDate ?? item.published ?? item.updated ?? item['dc:date']) ||
     new Date().toISOString();
   return {
     id: `${feed.id}-${index}-${safeIdKey(url)}`,
     title,
-    description: excerpt(rawDesc),
+    description: paragraphs.join('\n\n'),
+    paragraphs,
+    blocks,
     url,
-    image: pickImage(item),
+    image,
     source: feed.name,
     publishedAt,
     category: sectionToCategory(feed.section),
@@ -164,34 +251,128 @@ function extractItems(doc: unknown): Record<string, unknown>[] {
   return [];
 }
 
+async function fetchRss2Json(feed: FeedConfig): Promise<RssStory[]> {
+  const url = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feed.url)}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const data = await res.json();
+  if (data.status !== 'ok' || !Array.isArray(data.items)) {
+    throw new Error(data.message || 'rss2json conversion failed');
+  }
+  return data.items
+    .map((item: any, idx: number): RssStory | null => {
+      const title = stripHtml(textOf(item.title));
+      const link = item.link || item.guid || '';
+      if (!title || !link) return null;
+      const rawDesc = textOf(item.description || '');
+      const rawContent = textOf(item.content || '');
+      const { blocks, paragraphs, leadImage } = extractStoryBlocks(rawDesc, rawContent);
+      const image =
+        item.thumbnail ||
+        (item.enclosure && item.enclosure.link ? String(item.enclosure.link) : null) ||
+        leadImage ||
+        null;
+      const publishedAt =
+        textOf(item.pubDate || item.published || item.updated) ||
+        new Date().toISOString();
+      return {
+        id: `${feed.id}-${idx}-${safeIdKey(link)}`,
+        title,
+        description: paragraphs.join('\n\n'),
+        paragraphs,
+        blocks,
+        url: link,
+        image,
+        source: feed.name,
+        publishedAt,
+        category: sectionToCategory(feed.section),
+      };
+    })
+    .filter((s): s is RssStory => s !== null);
+}
+
 export async function fetchFeed(
   feed: FeedConfig,
   opts: { todayOnly?: boolean; editionDate?: string } = {},
 ): Promise<RssStory[]> {
+  let candidates: RssStory[] = [];
+  let directError: any = null;
+
+  // 1. Try direct XML fetch + parser
   try {
-    const res = await fetchWithCorsFallback(feed.url, {
-      headers: {
-        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+    const res = await fetchWithCorsFallback(
+      feed.url,
+      {
+        headers: {
+          Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+        },
       },
-    }, 12000);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const xml = await res.text();
-    const doc = parser.parse(xml);
-    const items = extractItems(doc);
-    const limit = feed.limit ?? 5;
-    const out: RssStory[] = [];
-    for (let i = 0; i < items.length && out.length < limit; i++) {
-      const story = normalizeItem(items[i], feed, i);
-      if (!story) continue;
-      if (opts.todayOnly && opts.editionDate) {
-        if (!isSameChicagoDay(story.publishedAt, opts.editionDate)) continue;
+      6000,
+    );
+    if (res.ok) {
+      const xml = await res.text();
+      const doc = parser.parse(xml);
+      const items = extractItems(doc);
+      for (let i = 0; i < items.length && candidates.length < 25; i++) {
+        const story = normalizeItem(items[i], feed, i);
+        if (story) candidates.push(story);
       }
-      out.push(story);
+    } else {
+      directError = new Error(`HTTP ${res.status}`);
     }
-    return out;
-  } catch (err: any) {
-    throw err;
+  } catch (e) {
+    directError = e;
   }
+
+  // 2. If direct/CORS XML fetch failed or produced no candidates, try rss2json converter
+  if (!candidates.length) {
+    try {
+      candidates = await fetchRss2Json(feed);
+    } catch {
+      // Both failed
+    }
+  }
+
+  if (!candidates.length) {
+    throw directError || new Error('Could not fetch or parse feed');
+  }
+
+  const limit = feed.limit ?? 5;
+  const out: RssStory[] = [];
+
+  if (opts.todayOnly && opts.editionDate) {
+    for (const story of candidates) {
+      if (out.length >= limit) break;
+      if (isSameChicagoDay(story.publishedAt, opts.editionDate)) {
+        out.push(story);
+      }
+    }
+  }
+
+  // If todayOnly is false, or if todayOnly produced 0 items, take the latest candidate stories
+  if (!out.length) {
+    out.push(...candidates.slice(0, limit));
+  }
+
+  return out;
+}
+
+export interface CustomFeedResult {
+  id: string;
+  name: string;
+  url: string;
+  stories: RssStory[];
+}
+
+export interface FetchedSections {
+  lead: RssStory[];
+  alsoToday: RssStory[];
+  news: RssStory[];
+  businessTech: RssStory[];
+  sports: RssStory[];
+  customFeeds: CustomFeedResult[];
+  okFeeds: string[];
+  failedFeeds: { id: string; error: string }[];
 }
 
 function dedupe(stories: RssStory[]): RssStory[] {
@@ -209,9 +390,9 @@ function dedupe(stories: RssStory[]): RssStory[] {
 export interface FetchFeedsOptions {
   /** If set, only these built-in feed ids run. */
   enabledFeedIds?: string[] | null;
-  /** Extra custom feeds (section defaults to news). */
-  customFeeds?: { id: string; name: string; url: string; section?: FeedSection }[];
-  /** When true, keep only items published on editionDate (America/Chicago). Custom feeds always today-only. */
+  /** Extra custom feeds. */
+  customFeeds?: { id: string; name: string; url: string }[];
+  /** When true, keep only items published on editionDate (America/Chicago). */
   todayOnlyBuiltIn?: boolean;
   editionDate?: string;
 }
@@ -224,6 +405,7 @@ export async function fetchAllFeeds(opts: FetchFeedsOptions = {}): Promise<Fetch
     news: [],
     businessTech: [],
     sports: [],
+    customFeeds: [],
     okFeeds: [],
     failedFeeds: [],
   };
@@ -233,12 +415,17 @@ export async function fetchAllFeeds(opts: FetchFeedsOptions = {}): Promise<Fetch
     : null;
 
   const builtIns = NEWS_FEEDS.filter((f) => !enabled || enabled.has(f.id));
+  const customMap = new Map<string, CustomFeedResult>();
+  (opts.customFeeds || []).forEach((c) => {
+    customMap.set(c.id, { id: c.id, name: c.name || 'Custom', url: c.url, stories: [] });
+  });
+
   const customs: FeedConfig[] = (opts.customFeeds || []).map((c) => ({
     id: c.id,
     name: c.name || 'Custom',
     url: c.url,
-    section: c.section || 'news',
-    limit: 8,
+    section: 'news',
+    limit: 12,
   }));
 
   const editionDate = opts.editionDate;
@@ -249,7 +436,7 @@ export async function fetchAllFeeds(opts: FetchFeedsOptions = {}): Promise<Fetch
     })),
     ...customs.map((feed) => ({
       feed,
-      todayOnly: true,
+      todayOnly: false,
     })),
   ];
 
@@ -274,8 +461,15 @@ export async function fetchAllFeeds(opts: FetchFeedsOptions = {}): Promise<Fetch
       continue;
     }
     empty.okFeeds.push(r.feed.id);
-    empty[r.feed.section].push(...r.stories);
+    if (customMap.has(r.feed.id)) {
+      const entry = customMap.get(r.feed.id)!;
+      entry.stories = dedupe(r.stories);
+    } else {
+      empty[r.feed.section].push(...r.stories);
+    }
   }
+
+  empty.customFeeds = Array.from(customMap.values());
 
   empty.lead = dedupe(empty.lead);
   empty.alsoToday = dedupe(empty.alsoToday);

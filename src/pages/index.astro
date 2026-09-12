@@ -160,6 +160,7 @@ const hasWireStories =
                 <StoryColumn label="Sports" stories={edition.sports} />
               ) : null}
             </div>
+            <div class="flow-block" data-live-custom-feeds></div>
           </div>
 
           <p class="feed-status-note screen-only">
@@ -560,6 +561,8 @@ const hasWireStories =
       function storyHtml(s: {
         title: string;
         description: string;
+        paragraphs?: string[];
+        blocks?: { type: 'paragraph' | 'image'; text?: string; src?: string }[];
         url?: string;
         source: string;
         brief?: boolean;
@@ -569,10 +572,33 @@ const hasWireStories =
           ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>`
           : escapeHtml(s.title);
         const cls = s.brief ? 'story-item brief-item' : 'story-item';
+
+        let bodyHtml = '';
+        if (Array.isArray(s.blocks) && s.blocks.length) {
+          bodyHtml = s.blocks
+            .map((b) => {
+              if (b.type === 'image' && b.src) {
+                return storyImageHtml(b.src);
+              }
+              if (b.text) {
+                return `<p class="deck">${escapeHtml(b.text)}</p>`;
+              }
+              return '';
+            })
+            .join('');
+        } else {
+          const paragraphs: string[] = Array.isArray(s.paragraphs) && s.paragraphs.length
+            ? s.paragraphs
+            : (s.description || '').split(/\n\s*\n/).filter(Boolean);
+          const parasHtml = paragraphs.length
+            ? paragraphs.map((p) => `<p class="deck">${escapeHtml(p)}</p>`).join('')
+            : `<p class="deck">${escapeHtml(s.description)}</p>`;
+          bodyHtml = `${storyImageHtml(s.imageUrl)}${parasHtml}`;
+        }
+
         return `<article class="${cls}">
           <h3>${title}</h3>
-          ${storyImageHtml(s.imageUrl)}
-          <p class="deck">${escapeHtml(s.description)}</p>
+          ${bodyHtml}
           <p class="meta">${escapeHtml(s.source)}</p>
         </article>`;
       }
@@ -679,57 +705,42 @@ const hasWireStories =
         const body = list.length
           ? list
               .map(
-                (item) => `<li>
-              <span class="time">${escapeHtml(item.time)}</span>
-              <span class="title">${escapeHtml(item.title)}</span>
-              ${item.note ? `<span class="note">${escapeHtml(item.note)}</span>` : ''}
-            </li>`,
+                (ev) =>
+                  `<li><span class="time">${escapeHtml(ev.time)}</span><span class="desc">${escapeHtml(ev.title)}</span></li>`,
               )
               .join('')
-          : `<li><span class="time">—</span><span class="title">Nothing scheduled</span></li>`;
-        root.innerHTML = `<h2 class="section-label">Today's Agenda</h2>
-          <ul class="agenda-list">${body}</ul>`;
+          : '<li class="agenda-empty">Quiet day</li>';
+        root.innerHTML = `<aside class="schedule-box" aria-label="Daily schedule">
+          <h2 class="section-label">Today's Agenda</h2>
+          <ul class="agenda-list">${body}</ul>
+        </aside>`;
       }
 
-      function renderGrokWeather(parsed: ParsedGrokBrief | null) {
+      function renderGrokWeather(grok: ParsedGrokBrief | null) {
         const root = document.querySelector('[data-grok-weather]');
-        const printBody = document.querySelector('[data-print-weather-body]') as HTMLElement | null;
-        const weather = parsed?.sections.find((s) => s.kind === 'weather');
-        const body =
-          weather && (weather.paragraphs.length || weather.items.length)
-            ? weather.paragraphs.join(' ') ||
-              weather.items.map((i) => `${i.headline}. ${i.body}`).join(' ')
-            : '';
         if (!root) return;
-        if (!body) {
+        const sec = grok?.sections.find((s) => s.kind === 'weather');
+        if (!sec || !sec.paragraphs.length) {
           root.innerHTML = '';
-          if (printBody) {
-            printBody.textContent = '';
-            printBody.hidden = true;
-          }
           return;
         }
-        root.innerHTML = `<aside class="grok-weather-box brief-item">
-          <h2 class="section-label">Brief · Weather</h2>
-          <p>${escapeHtml(body)}</p>
+        root.innerHTML = `<aside class="grok-weather-box weather-box brief-item" aria-label="Weather from Automation">
+          <h2 class="section-label">Weather</h2>
+          <div class="weather-prose">${sec.paragraphs.map((p) => `<p>${escapeHtml(p)}</p>`).join('')}</div>
         </aside>`;
-        if (printBody) {
-          printBody.textContent = body;
-          printBody.hidden = false;
-        }
       }
 
-      function renderGrokGlance(parsed: ParsedGrokBrief | null) {
+      function renderGrokGlance(grok: ParsedGrokBrief | null) {
         const root = document.querySelector('[data-grok-glance]');
         if (!root) return;
-        const glance = parsed?.sections.find((s) => s.kind === 'glance');
+        const glance = grok?.sections.find((s) => s.kind === 'glance');
         const items = glance ? (glance.bullets.length ? glance.bullets : glance.paragraphs) : [];
         if (!glance || !items.length) {
           root.innerHTML = '';
           return;
         }
-        const heading = glance.heading && glance.heading.trim() ? glance.heading : 'At a Glance';
-        root.innerHTML = `<aside class="grok-glance-box brief-item">
+        const heading = glance.heading && glance.heading.trim() ? glance.heading : 'At a glance';
+        root.innerHTML = `<aside class="grok-glance-box glance-box brief-item" aria-label="At a glance">
           <h2 class="section-label">${escapeHtml(heading)}</h2>
           <ul class="glance-list">
             ${items.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
@@ -737,18 +748,20 @@ const hasWireStories =
         </aside>`;
       }
 
-      function renderGrokWatch(parsed: ParsedGrokBrief | null) {
+      function renderGrokWatch(grok: ParsedGrokBrief | null) {
         const root = document.querySelector('[data-grok-watch]');
         if (!root) return;
-        const watch = parsed?.sections.find((s) => s.kind === 'watch');
-        if (!watch || !watch.bullets.length) {
+        const watch = grok?.sections.find((s) => s.kind === 'watch');
+        const items = watch ? (watch.bullets.length ? watch.bullets : watch.paragraphs) : [];
+        if (!watch || !items.length) {
           root.innerHTML = '';
           return;
         }
-        root.innerHTML = `<aside class="grok-watch-box brief-item">
-          <h2 class="section-label">What to watch</h2>
+        const heading = watch.heading && watch.heading.trim() ? watch.heading : 'What to watch';
+        root.innerHTML = `<aside class="grok-watch-box watch-box brief-item" aria-label="What to watch">
+          <h2 class="section-label">${escapeHtml(heading)}</h2>
           <ul class="watch-list">
-            ${watch.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
+            ${items.map((b) => `<li>${escapeHtml(b)}</li>`).join('')}
           </ul>
         </aside>`;
       }
@@ -757,7 +770,83 @@ const hasWireStories =
         return (stories || []).map((s) => ({ ...s, brief: false, column }));
       }
 
-      /** Grok maps directly to columns; RSS only if settings.rssEnabled. */
+      let customFeedPools: Record<string, any[]> = {};
+      let customFeedIndices: Record<string, number> = {};
+
+      function customStoryHtml(feed: { id: string; name: string }, story: any, idx: number, total: number) {
+        const title = story.url
+          ? `<a href="${escapeAttr(story.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>`
+          : escapeHtml(story.title);
+        const cycleControls =
+          total > 1
+            ? `<div class="story-cycle-controls" role="toolbar" aria-label="Change article">
+                <button type="button" class="story-cycle-btn" data-custom-feed-cycle="prev" data-feed-id="${escapeAttr(feed.id)}" title="Previous article" aria-label="Previous article">◂ Prev</button>
+                <span class="story-cycle-indicator">${idx + 1} of ${total}</span>
+                <button type="button" class="story-cycle-btn" data-custom-feed-cycle="next" data-feed-id="${escapeAttr(feed.id)}" title="Next article" aria-label="Next article">Next ▸</button>
+              </div>`
+            : '';
+
+        let bodyHtml = '';
+        if (Array.isArray(story.blocks) && story.blocks.length) {
+          bodyHtml = story.blocks
+            .map((b: any) => {
+              if (b.type === 'image' && b.src) {
+                return storyImageHtml(b.src);
+              }
+              if (b.text) {
+                return `<p class="deck">${escapeHtml(b.text)}</p>`;
+              }
+              return '';
+            })
+            .join('');
+        } else {
+          const paragraphs: string[] = Array.isArray(story.paragraphs) && story.paragraphs.length
+            ? story.paragraphs
+            : (story.description || '').split(/\n\s*\n/).filter(Boolean);
+          const parasHtml = paragraphs.length
+            ? paragraphs.map((p) => `<p class="deck">${escapeHtml(p)}</p>`).join('')
+            : `<p class="deck">${escapeHtml(story.description || '')}</p>`;
+          bodyHtml = `${storyImageHtml(story.imageUrl || story.image)}${parasHtml}`;
+        }
+
+        return `<section class="story-column custom-feed-column" data-custom-feed-id="${escapeAttr(feed.id)}">
+          <div class="custom-feed-header">
+            <h2 class="section-label">${escapeHtml(feed.name)}</h2>
+            ${cycleControls}
+          </div>
+          <article class="story-item custom-feed-story" data-feed-id="${escapeAttr(feed.id)}">
+            <h3>${title}</h3>
+            ${bodyHtml}
+            <p class="meta">${escapeHtml(story.source || feed.name)}</p>
+          </article>
+        </section>`;
+      }
+
+      function renderCustomFeeds(customFeedsData?: { id: string; name: string; url: string; stories: any[] }[]) {
+        if (customFeedsData) {
+          customFeedsData.forEach((f) => {
+            if (f.stories?.length) {
+              customFeedPools[f.id] = f.stories;
+            }
+          });
+        }
+        const sectionsHtml = (settings.customFeeds || [])
+          .map((feed) => {
+            const stories = customFeedPools[feed.id] || [];
+            if (!stories.length) return '';
+            const idx = (customFeedIndices[feed.id] ?? 0) % stories.length;
+            const story = stories[idx];
+            return customStoryHtml(feed, story, idx, stories.length);
+          })
+          .filter(Boolean)
+          .join('');
+
+        document.querySelectorAll<HTMLElement>('[data-live-custom-feeds]').forEach((el) => {
+          el.innerHTML = sectionsHtml;
+        });
+      }
+
+      /** Grok maps directly to columns; built-in RSS if settings.rssEnabled; custom RSS in dedicated end sections. */
       function composeEdition(rss: any, grok: ParsedGrokBrief | null) {
         const useRss = settings.rssEnabled === true;
         const newsRss = useRss ? asBriefCards(rss?.news || [], 'news') : [];
@@ -767,10 +856,14 @@ const hasWireStories =
         const leadRss = useRss ? rss?.lead?.[0] || rss?.news?.[0] || null : null;
 
         if (!grok) {
-          if (useRss && leadRss) {
+          if (useRss && (leadRss || newsRss.length || bizRss.length || sportsRss.length || alsoRss.length)) {
+            const newsRssRest =
+              leadRss && newsRss.length && (newsRss[0].title === leadRss.title || newsRss[0].url === leadRss.url)
+                ? newsRss.slice(1)
+                : newsRss;
             renderLead(leadRss, null, [], true);
             renderAlso(alsoRss.slice(0, 5));
-            renderColumn('[data-live-news]', 'News', newsRss.slice(0, 5));
+            renderColumn('[data-live-news]', 'News', newsRssRest.slice(0, 5));
             renderColumn('[data-live-biz]', 'Business · Tech', bizRss.slice(0, 5));
             renderColumn('[data-live-sports]', 'Sports', sportsRss.slice(0, 5));
           } else {
@@ -783,6 +876,7 @@ const hasWireStories =
           renderGrokWeather(null);
           renderGrokGlance(null);
           renderGrokWatch(null);
+          renderCustomFeeds(rss?.customFeeds);
           schedulePaginate();
           return;
         }
@@ -803,16 +897,21 @@ const hasWireStories =
               imageUrl: briefNews[0].imageUrl,
             }
           : null;
-        const newsRest = briefNews.slice(leadFromGrok && !useRss ? 1 : 0);
+        const newsRest = briefNews.slice(leadFromGrok ? 1 : 0);
+        const effectiveLead = leadFromGrok || leadRss;
+        const newsRssRest =
+          !leadFromGrok && leadRss && newsRss.length && (newsRss[0].title === leadRss.title || newsRss[0].url === leadRss.url)
+            ? newsRss.slice(1)
+            : newsRss;
 
-        renderLead(leadFromGrok || leadRss, grok.lede, []);
+        renderLead(effectiveLead, grok.lede, []);
         renderGrokWeather(grok);
         renderGrokGlance(grok);
         renderGrokWatch(grok);
 
         if (useRss) {
           renderAlso(interleave(briefAlso, alsoRss).slice(0, 6));
-          renderColumn('[data-live-news]', 'News', interleave(newsRest, newsRss).slice(0, 6));
+          renderColumn('[data-live-news]', 'News', interleave(newsRest, newsRssRest).slice(0, 6));
           renderColumn('[data-live-biz]', 'Business · Tech', interleave(briefBiz, bizRss).slice(0, 6));
           renderColumn('[data-live-sports]', 'Sports', interleave(briefSports, sportsRss).slice(0, 6));
         } else {
@@ -821,13 +920,15 @@ const hasWireStories =
           renderColumn('[data-live-biz]', 'Business · Tech · Markets', briefBiz.slice(0, 6));
           renderColumn('[data-live-sports]', 'Sports', briefSports.slice(0, 6));
         }
+        renderCustomFeeds(rss?.customFeeds);
         schedulePaginate();
       }
 
       async function refreshStories(s: PaperSettings) {
         const status = document.getElementById('settings-status');
-        if (!s.rssEnabled) {
-          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [] };
+        const hasCustom = Array.isArray(s.customFeeds) && s.customFeeds.length > 0;
+        if (!s.rssEnabled && !hasCustom) {
+          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [], customFeeds: [] };
           composeEdition(lastRss, lastGrok);
           if (status) status.textContent = 'RSS disabled · paper uses Grok brief';
           return;
@@ -836,7 +937,7 @@ const hasWireStories =
         const editionDate = document.body.dataset.editionDate || '';
         try {
           const data = await fetchAllFeeds({
-            enabledFeedIds: s.enabledFeedIds,
+            enabledFeedIds: s.rssEnabled ? s.enabledFeedIds : [],
             customFeeds: s.customFeeds,
             editionDate,
             todayOnlyBuiltIn: true,
@@ -849,6 +950,7 @@ const hasWireStories =
             alsoToday: data.alsoToday?.length
               ? data.alsoToday.slice(0, 5)
               : (data.news || []).slice(1, 5),
+            customFeeds: data.customFeeds || [],
           };
           composeEdition(lastRss, lastGrok);
           if (status) {
@@ -857,7 +959,7 @@ const hasWireStories =
               (data.failedFeeds?.length ? ` · ${data.failedFeeds.length} skipped` : '');
           }
         } catch (e) {
-          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [] };
+          lastRss = { news: [], businessTech: [], sports: [], lead: [], alsoToday: [], customFeeds: [] };
           composeEdition(lastRss, lastGrok);
           if (status) {
             status.textContent =
@@ -946,13 +1048,20 @@ const hasWireStories =
         showPage(1);
       }
 
+      function sectionLabel(sec?: string) {
+        if (sec === 'alsoToday') return 'Also today / Local';
+        if (sec === 'businessTech') return 'Business · Tech';
+        if (sec === 'sports') return 'Sports';
+        return 'News';
+      }
+
       function renderCustomList() {
         const list = document.getElementById('custom-feeds-list');
         if (!list) return;
         list.innerHTML = customFeeds
           .map(
             (f, i) => `<div class="custom-feed-row" data-idx="${i}">
-              <span><strong>${escapeHtml(f.name)}</strong><br/>${escapeHtml(f.url)}</span>
+              <span><strong>${escapeHtml(f.name)}</strong> <em style="font-size: 0.72rem; color: #555;">(${sectionLabel(f.section)})</em><br/>${escapeHtml(f.url)}</span>
               <button type="button" data-remove-custom="${i}">Remove</button>
             </div>`,
           )
@@ -1029,12 +1138,10 @@ const hasWireStories =
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         const zip = (zipInput?.value || '60062').trim();
         const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
-        const rssEnabled = Boolean(rssMaster?.checked);
-        const enabledFeedIds = rssEnabled
-          ? Array.from(
-              document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
-            ).map((cb) => cb.value)
-          : [];
+        const enabledFeedIds = Array.from(
+          document.querySelectorAll<HTMLInputElement>('input[name="feed"]:checked'),
+        ).map((cb) => cb.value);
+        const rssEnabled = Boolean(rssMaster?.checked) || customFeeds.length > 0 || enabledFeedIds.length > 0;
         const enabledComicIds = Array.from(
           document.querySelectorAll<HTMLInputElement>('input[name="comic"]:checked'),
         ).map((cb) => cb.value);
@@ -1044,7 +1151,7 @@ const hasWireStories =
           zip: /^\d{5}$/.test(zip) ? zip : '60062',
           rssEnabled,
           enabledFeedIds,
-          customFeeds: rssEnabled ? [...customFeeds] : [],
+          customFeeds: [...customFeeds],
           enabledComicIds,
           calendars: calendars.map((c) => ({
             ...c,
@@ -1064,10 +1171,20 @@ const hasWireStories =
       document.getElementById('custom-feed-add-btn')?.addEventListener('click', () => {
         const name = (document.getElementById('custom-feed-name') as HTMLInputElement)?.value.trim() || 'Custom';
         const url = (document.getElementById('custom-feed-url') as HTMLInputElement)?.value.trim();
+        const sectionSelect = document.getElementById('custom-feed-section') as HTMLSelectElement | null;
+        const section = (sectionSelect?.value || 'news') as any;
         if (!url || !url.startsWith('http')) return;
-        customFeeds.push({ id: `custom-${Date.now()}`, name, url });
+        customFeeds.push({ id: `custom-${Date.now()}`, name, url, section });
         (document.getElementById('custom-feed-name') as HTMLInputElement).value = '';
         (document.getElementById('custom-feed-url') as HTMLInputElement).value = '';
+
+        // Auto-check RSS master so the user sees RSS is enabled
+        const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
+        if (rssMaster && !rssMaster.checked) {
+          rssMaster.checked = true;
+          syncRssGroupsDisabled();
+        }
+
         renderCustomList();
       });
 
@@ -1441,6 +1558,23 @@ const hasWireStories =
 
       document.addEventListener('click', (e) => {
         const t = e.target as HTMLElement | null;
+        const customCycleBtn = t?.closest?.('[data-custom-feed-cycle]') as HTMLElement | null;
+        if (customCycleBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const feedId = customCycleBtn.getAttribute('data-feed-id') || '';
+          const dir = customCycleBtn.getAttribute('data-custom-feed-cycle');
+          const stories = customFeedPools[feedId] || [];
+          if (stories.length > 1) {
+            let cur = customFeedIndices[feedId] ?? 0;
+            cur = dir === 'next' ? (cur + 1) % stories.length : (cur - 1 + stories.length) % stories.length;
+            customFeedIndices[feedId] = cur;
+            renderCustomFeeds();
+            schedulePaginate();
+          }
+          return;
+        }
+
         const cycleBtn = t?.closest?.('[data-comic-cycle]') as HTMLElement | null;
         if (cycleBtn) {
           e.preventDefault();
@@ -1501,7 +1635,9 @@ const hasWireStories =
         }
       }
 
-      if (settings.rssEnabled) refreshStories(settings);
+      if (settings.rssEnabled || (Array.isArray(settings.customFeeds) && settings.customFeeds.length > 0)) {
+        void refreshStories(settings);
+      }
       if (settings.calendars.length) refreshAgenda(settings);
     </script>
   </body>

@@ -5,11 +5,17 @@
 
 export type StoryCategory = 'news' | 'business' | 'tech' | 'sports' | 'local' | 'national' | 'world';
 
+export type StoryContentBlock =
+  | { type: 'paragraph'; text: string }
+  | { type: 'image'; src: string; alt?: string };
+
 /** Normalized RSS-like item — primary news backbone. */
 export interface RssStory {
   id: string;
   title: string;
   description: string;
+  paragraphs?: string[];
+  blocks?: StoryContentBlock[];
   url: string;
   image?: string | null;
   source: string;
