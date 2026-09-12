@@ -49,6 +49,7 @@ export interface ComicPlaceholder {
 /** Live or fallback comic strip slot. */
 export interface ComicStripData {
   id: string;
+  feedId?: string;
   title: string;
   credit: string;
   caption: string;

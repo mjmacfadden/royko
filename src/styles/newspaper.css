@@ -731,6 +731,52 @@ a:hover {
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
+  position: relative;
+}
+
+.comic-cycle-controls {
+  position: absolute;
+  right: 0.35rem;
+  bottom: 0.35rem;
+  display: flex;
+  gap: 0.2rem;
+  padding: 0.15rem;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+  z-index: 20;
+}
+
+.comic-box:hover .comic-cycle-controls,
+.comic-box:focus-within .comic-cycle-controls,
+.comic-frame:hover .comic-cycle-controls,
+.comic-frame:focus-within .comic-cycle-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.comic-cycle-btn {
+  appearance: none;
+  margin: 0;
+  padding: 0.15rem 0.4rem;
+  font: 600 0.65rem/1.2 var(--sans, system-ui, sans-serif);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: #111;
+  background: #f4f4f4;
+  border: 1px solid #333;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.comic-cycle-btn:hover {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 
 .comics-band .comic-image {
@@ -964,10 +1010,13 @@ a:hover {
 
 .jumble-clue,
 .puzzle-clue {
-  font-size: 0.72rem;
-  margin: 0 0 0.45rem;
+  font-size: 0.64rem;
+  margin: 0.25rem 0 0.15rem;
   font-style: italic;
-  text-align: left;
+  text-align: center;
+  transform: rotate(180deg);
+  opacity: 0.85;
+  line-height: 1.2;
 }
 
 .jumble-word-block {
@@ -1056,22 +1105,30 @@ a:hover {
 .jumble-stack .jumble-tiles,
 .jumble-stack .jumble-blanks {
   --jumble-tile: 1.05rem;
-  --jumble-gap: 0.14rem;
+  --jumble-gap: 0.18rem;
+}
+
+.jumble-stack .jumble-tiles {
+  margin-bottom: 0;
+  padding: 0.1rem 0;
 }
 
 .jumble-stack .jumble-blanks {
-  min-height: calc(var(--jumble-tile) + 0.35rem);
+  padding: 0.2rem 0 0.45rem;
+  min-height: calc(var(--jumble-tile) + 0.65rem);
 }
 
 .jumble-stack .jumble-clue {
-  font-size: 0.68rem;
-  margin: 0 0 0.12rem;
-  line-height: 1.2;
+  font-size: 0.6rem;
+  margin: 0.25rem 0 0.1rem;
+  line-height: 1.15;
+  text-align: center;
+  transform: rotate(180deg);
 }
 
 .jumble-stack .jumble-word-block {
-  margin: 0;
-  gap: 0.12rem;
+  margin: 0.1rem 0 0.2rem;
+  gap: 0.65rem;
 }
 
 .jumble-scrambled {
@@ -2145,6 +2202,7 @@ body:has(#paged-edition .page-sheet) .edition-document:not(.is-source-only) {
   .screen-chrome,
   .screen-only,
   .lead-image-align,
+  .comic-cycle-controls,
   .settings-dialog,
   .grok-paste-dialog,
   .edition-document,

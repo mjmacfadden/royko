@@ -65,7 +65,7 @@ const hasWireStories =
         <button type="button" id="next-page" aria-label="Next page">→</button>
       </div>
       <div style="display:flex; gap:0.5rem; align-items:center;">
-        <span style="opacity:0.8;">{PAPER_NAME_UPPER}</span>
+        <span id="chrome-paper-name" style="opacity:0.8;">{PAPER_NAME_UPPER}</span>
         <button type="button" id="open-grok-paste">Paste brief</button>
         <button type="button" id="open-settings">Settings</button>
         <button type="button" id="print-paper" title="Print letter page sheets">Print edition</button>
@@ -180,7 +180,7 @@ const hasWireStories =
           {/* Fixed last-page block — out of the 3-column news flow */}
           <div class="page3-features" data-features-block>
             <div class="comics-band" aria-label="Comics" data-live-comics>
-              {(comicsPool.length ? comicsPool : edition.comics).map((c) => <ComicStrip comic={c} />)}
+              {(comicsPool.length ? comicsPool : edition.comics).slice(0, 2).map((c, i) => <ComicStrip comic={c} slotIndex={i} />)}
             </div>
             <div class="games-band" aria-label="Games">
               <div class="game-cell game-crossword">
@@ -281,12 +281,37 @@ const hasWireStories =
       let paginateTimer = 0;
       let paginating = false;
 
+      function applyPaperIdentity(name?: string, tagline?: string) {
+        const cleanName = (name || 'The Daily Mike').trim();
+        const upper = cleanName.toUpperCase();
+        const cleanTagline = (tagline || 'Independent · Personal · Daily').trim();
+
+        const chromeName = document.getElementById('chrome-paper-name');
+        if (chromeName) chromeName.textContent = upper;
+
+        document.querySelectorAll<HTMLElement>('[data-masthead-title]').forEach((el) => {
+          el.textContent = upper;
+        });
+        document.querySelectorAll<HTMLElement>('[data-masthead-tagline]').forEach((el) => {
+          el.textContent = cleanTagline;
+        });
+        document.querySelectorAll<HTMLElement>('.running-head span:first-child, .edition-end-folio span:first-child').forEach((el) => {
+          el.textContent = upper;
+        });
+
+        const dateStr = document.querySelector('.masthead-date-line span:first-child')?.textContent || '';
+        if (dateStr) {
+          document.title = `${upper} — ${dateStr}`;
+        }
+      }
+
       async function runPaginate() {
         if (paginating) return;
         paginating = true;
         try {
           await fillPrintWeather(settings?.zip || '60062').catch(() => undefined);
-          const result = await paginateEdition();
+          const paperUpper = (settings?.paperName || 'The Daily Mike').trim().toUpperCase();
+          const result = await paginateEdition({ paperName: paperUpper });
           applyLeadImageAlign();
           fitComicSourceUrls();
           const total = result.pageCount || getPageSheetCount() || 1;
@@ -972,6 +997,10 @@ const hasWireStories =
       }
 
       function populateSettingsForm(s: PaperSettings) {
+        const nameInput = document.getElementById('settings-paper-name') as HTMLInputElement | null;
+        if (nameInput) nameInput.value = s.paperName || 'The Daily Mike';
+        const taglineInput = document.getElementById('settings-paper-tagline') as HTMLInputElement | null;
+        if (taglineInput) taglineInput.value = s.paperTagline || 'Independent · Personal · Daily';
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         if (zipInput) zipInput.value = s.zip;
         const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
@@ -993,6 +1022,10 @@ const hasWireStories =
       }
 
       function readSettingsFromForm(): PaperSettings {
+        const nameInput = document.getElementById('settings-paper-name') as HTMLInputElement | null;
+        const paperName = (nameInput?.value || 'The Daily Mike').trim() || 'The Daily Mike';
+        const taglineInput = document.getElementById('settings-paper-tagline') as HTMLInputElement | null;
+        const paperTagline = (taglineInput?.value || 'Independent · Personal · Daily').trim() || 'Independent · Personal · Daily';
         const zipInput = document.getElementById('settings-zip') as HTMLInputElement | null;
         const zip = (zipInput?.value || '60062').trim();
         const rssMaster = document.getElementById('settings-rss-enabled') as HTMLInputElement | null;
@@ -1006,6 +1039,8 @@ const hasWireStories =
           document.querySelectorAll<HTMLInputElement>('input[name="comic"]:checked'),
         ).map((cb) => cb.value);
         return {
+          paperName,
+          paperTagline,
           zip: /^\d{5}$/.test(zip) ? zip : '60062',
           rssEnabled,
           enabledFeedIds,
@@ -1091,6 +1126,7 @@ const hasWireStories =
           const bundle = parseLocalStorageBundle(JSON.parse(text));
           settings = applyLocalStorageBundle(bundle);
           populateSettingsForm(settings);
+          applyPaperIdentity(settings.paperName, settings.paperTagline);
           applyComicVisibility(settings);
           await Promise.all([
             applyWeather(settings.zip),
@@ -1113,6 +1149,7 @@ const hasWireStories =
       document.getElementById('settings-save')?.addEventListener('click', async () => {
         settings = readSettingsFromForm();
         saveSettings(settings);
+        applyPaperIdentity(settings.paperName, settings.paperTagline);
         applyComicVisibility(settings);
         const ta = document.getElementById('grok-brief-input') as HTMLTextAreaElement | null;
         if (ta) applyGrokText(ta.value);
@@ -1178,25 +1215,6 @@ const hasWireStories =
         pasteDialog?.close();
       });
 
-      function applyComicVisibility(s: PaperSettings) {
-        const enabled = new Set(s.enabledComicIds);
-        let shown = 0;
-        document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box').forEach((box) => {
-          let id = box.dataset.comicId || '';
-          if (!id) {
-            const title = (box.querySelector('.section-label')?.textContent || '').trim().toLowerCase();
-            const map: Record<string, string> = { xkcd: 'xkcd', smbc: 'smbc', 'the oatmeal': 'oatmeal', 'new yorker daily cartoon': 'newyorker-daily' };
-            id = map[title] || '';
-          }
-          const want = Boolean(id && enabled.has(id) && shown < 2);
-          box.style.display = want ? '' : 'none';
-          if (want) shown += 1;
-        });
-        fitComicSourceUrls();
-        schedulePaginate();
-      }
-
-
       function shortComicUrl(href: string) {
         return href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
       }
@@ -1220,16 +1238,21 @@ const hasWireStories =
         return escapeHtml(t).replace(/`/g, '&#96;');
       }
 
-      function comicBoxHtml(c: {
-        id: string;
-        title: string;
-        credit: string;
-        caption: string;
-        imageUrl?: string | null;
-        link?: string;
-        live?: boolean;
-      }) {
+      function comicBoxHtml(
+        c: {
+          id: string;
+          feedId?: string;
+          title: string;
+          credit: string;
+          caption: string;
+          imageUrl?: string | null;
+          link?: string;
+          live?: boolean;
+        },
+        slotIndex = 0,
+      ) {
         const href = c.link || c.imageUrl || '';
+        const feedId = c.feedId || c.id.split('-')[0] || c.id;
         const img = c.imageUrl
           ? `<a class="comic-image-link" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer">
               <img class="comic-image" src="${escapeAttr(c.imageUrl)}" alt="${escapeAttr(c.title)} — ${escapeAttr(c.caption)}" loading="lazy" referrerpolicy="no-referrer" data-comic-img />
@@ -1238,18 +1261,23 @@ const hasWireStories =
         const source = href
           ? `<p class="comic-source"><a class="comic-source-url" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" data-fit-url>${escapeHtml(shortComicUrl(href))}</a></p>`
           : '';
-        return `<section class="comic-box" aria-label="${escapeAttr(c.title)}" data-comic-id="${escapeAttr(c.id)}" data-comic-live="${c.live ? '1' : '0'}">
+        return `<section class="comic-box" aria-label="${escapeAttr(c.title)}" data-comic-id="${escapeAttr(c.id)}" data-comic-feed-id="${escapeAttr(feedId)}" data-comic-slot="${slotIndex}" data-comic-live="${c.live ? '1' : '0'}">
           <h2 class="section-label">${escapeHtml(c.title)}</h2>
           <div class="comic-frame">
             <div class="comic-credit">${escapeHtml(c.credit)}${c.live === false ? ' <span class="comic-fallback-flag"> · feed fallback</span>' : ''}</div>
             ${img}
             ${source}
+            <div class="comic-cycle-controls" role="toolbar" aria-label="Change comic strip">
+              <button type="button" class="comic-cycle-btn" data-comic-cycle="prev" title="Previous comic strip" aria-label="Previous comic strip">◂ Prev</button>
+              <button type="button" class="comic-cycle-btn" data-comic-cycle="next" title="Next comic strip" aria-label="Next comic strip">Next ▸</button>
+            </div>
           </div>
         </section>`;
       }
 
       let comicsPool: {
         id: string;
+        feedId?: string;
         title: string;
         credit: string;
         caption: string;
@@ -1263,18 +1291,136 @@ const hasWireStories =
       } catch {
         comicsPool = [];
       }
-      const comicsUsed = new Set(
-        Array.from(document.querySelectorAll<HTMLElement>('[data-live-comics] .comic-box'))
-          .map((el) => el.dataset.comicId || '')
-          .filter(Boolean),
-      );
 
-      function promoteNextComic(band: HTMLElement) {
-        const next = comicsPool.find((c) => c.id && !comicsUsed.has(c.id) && c.imageUrl);
-        if (!next) return false;
-        comicsUsed.add(next.id);
-        band.insertAdjacentHTML('beforeend', comicBoxHtml(next));
-        return true;
+      const failedComicIds = new Set<string>();
+
+      function getSlotIndex(box: HTMLElement): number {
+        const raw = box.dataset.comicSlot;
+        if (raw != null && raw !== '') return Number(raw);
+        const parent = box.parentElement;
+        if (!parent) return 0;
+        const idx = Array.from(parent.children).indexOf(box);
+        return idx >= 0 ? idx : 0;
+      }
+
+      function getOtherSlotComicId(slotIndex: number): string | null {
+        const otherSlot = slotIndex === 0 ? 1 : 0;
+        const otherBox = document.querySelector<HTMLElement>(
+          `.edition-document [data-live-comics] .comic-box[data-comic-slot="${otherSlot}"]`,
+        ) || document.querySelector<HTMLElement>(
+          `#paged-edition [data-live-comics] .comic-box[data-comic-slot="${otherSlot}"]`,
+        );
+        return otherBox?.dataset.comicId || null;
+      }
+
+      function getCandidateComics(slotIndex: number, s: PaperSettings = settings) {
+        const enabled = new Set(s.enabledComicIds);
+        const otherId = getOtherSlotComicId(slotIndex);
+        return comicsPool.filter((c) => {
+          if (!c.imageUrl || failedComicIds.has(c.id)) return false;
+          const feedId = c.feedId || c.id.split('-')[0];
+          if (enabled.size > 0 && !enabled.has(feedId)) return false;
+          if (otherId && c.id === otherId) return false;
+          return true;
+        });
+      }
+
+      function updateComicBoxDom(box: HTMLElement, c: typeof comicsPool[0]) {
+        box.dataset.comicId = c.id;
+        box.dataset.comicFeedId = c.feedId || c.id.split('-')[0];
+        box.dataset.comicLive = c.live ? '1' : '0';
+
+        const label = box.querySelector('.section-label');
+        if (label) label.textContent = c.title;
+
+        const credit = box.querySelector('.comic-credit');
+        if (credit) {
+          credit.innerHTML = `${escapeHtml(c.credit)}${c.live === false ? ' <span class="comic-fallback-flag"> · feed fallback</span>' : ''}`;
+        }
+
+        const href = c.link || c.imageUrl || '';
+        const link = box.querySelector<HTMLAnchorElement>('.comic-image-link');
+        const img = box.querySelector<HTMLImageElement>('.comic-image');
+        if (img && c.imageUrl) {
+          img.src = c.imageUrl;
+          img.alt = `${c.title} — ${c.caption}`;
+        }
+        if (link) {
+          link.href = href || '#';
+        }
+
+        const srcUrl = box.querySelector<HTMLAnchorElement>('.comic-source-url');
+        if (srcUrl) {
+          srcUrl.href = href;
+          srcUrl.textContent = shortComicUrl(href);
+        }
+        fitComicSourceUrls(box);
+      }
+
+      function updateComicSlot(slotIndex: number, c: typeof comicsPool[0]) {
+        document
+          .querySelectorAll<HTMLElement>(`[data-live-comics] .comic-box[data-comic-slot="${slotIndex}"]`)
+          .forEach((box) => {
+            updateComicBoxDom(box, c);
+          });
+      }
+
+      function cycleComicSlot(box: HTMLElement, direction: 'next' | 'prev' = 'next') {
+        const slotIndex = getSlotIndex(box);
+        const candidates = getCandidateComics(slotIndex);
+        if (candidates.length <= 1) return;
+        const currentId = box.dataset.comicId || '';
+        const curIdx = candidates.findIndex((c) => c.id === currentId);
+        let nextIdx = 0;
+        if (direction === 'next') {
+          nextIdx = curIdx >= 0 ? (curIdx + 1) % candidates.length : 0;
+        } else {
+          nextIdx = curIdx >= 0 ? (curIdx - 1 + candidates.length) % candidates.length : candidates.length - 1;
+        }
+        const nextComic = candidates[nextIdx];
+        if (nextComic) {
+          updateComicSlot(slotIndex, nextComic);
+          schedulePaginate();
+        }
+      }
+
+      function applyComicVisibility(s: PaperSettings) {
+        const enabled = new Set(s.enabledComicIds);
+        const activeIds = new Set<string>();
+
+        [0, 1].forEach((slotIndex) => {
+          const boxes = document.querySelectorAll<HTMLElement>(
+            `[data-live-comics] .comic-box[data-comic-slot="${slotIndex}"]`,
+          );
+          const firstBox = boxes[0];
+          if (!firstBox) return;
+
+          let feedId = firstBox.dataset.comicFeedId || firstBox.dataset.comicId?.split('-')[0] || '';
+          let currentId = firstBox.dataset.comicId || '';
+
+          if (!enabled.has(feedId) || failedComicIds.has(currentId) || activeIds.has(currentId)) {
+            const candidate = comicsPool.find((c) => {
+              if (!c.imageUrl || failedComicIds.has(c.id) || activeIds.has(c.id)) return false;
+              const fId = c.feedId || c.id.split('-')[0];
+              return enabled.has(fId);
+            });
+            if (candidate) {
+              updateComicSlot(slotIndex, candidate);
+              feedId = candidate.feedId || candidate.id.split('-')[0];
+              currentId = candidate.id;
+            }
+          }
+
+          const want = Boolean(feedId && enabled.has(feedId) && !activeIds.has(currentId));
+          boxes.forEach((b) => {
+            b.style.display = want ? '' : 'none';
+          });
+          if (want && currentId) {
+            activeIds.add(currentId);
+          }
+        });
+        fitComicSourceUrls();
+        schedulePaginate();
       }
 
       document.addEventListener(
@@ -1283,12 +1429,10 @@ const hasWireStories =
           const img = e.target as HTMLElement | null;
           if (!img || img.tagName !== 'IMG' || !img.hasAttribute('data-comic-img')) return;
           const box = img.closest('.comic-box') as HTMLElement | null;
-          const band = box?.closest('[data-live-comics]') as HTMLElement | null;
-          if (!box || !band) return;
+          if (!box) return;
           const failedId = box.dataset.comicId || '';
-          if (failedId) comicsUsed.add(failedId);
-          box.remove();
-          promoteNextComic(band);
+          if (failedId) failedComicIds.add(failedId);
+          cycleComicSlot(box, 'next');
           applyComicVisibility(settings);
           schedulePaginate();
         },
@@ -1297,6 +1441,16 @@ const hasWireStories =
 
       document.addEventListener('click', (e) => {
         const t = e.target as HTMLElement | null;
+        const cycleBtn = t?.closest?.('[data-comic-cycle]') as HTMLElement | null;
+        if (cycleBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          const box = cycleBtn.closest('.comic-box') as HTMLElement | null;
+          const dir = cycleBtn.getAttribute('data-comic-cycle') === 'prev' ? 'prev' : 'next';
+          if (box) cycleComicSlot(box, dir);
+          return;
+        }
+
         const btn = t?.closest?.('[data-lead-align]') as HTMLElement | null;
         if (!btn) return;
         const align = btn.getAttribute('data-lead-align');
@@ -1315,6 +1469,7 @@ const hasWireStories =
       window.addEventListener('beforeprint', () => {
         void fillPrintWeather(settings.zip || '60062');
       });
+      applyPaperIdentity(settings.paperName, settings.paperTagline);
       applyComicVisibility(settings);
       lastRss = {
         news: bootstrap.news || [],

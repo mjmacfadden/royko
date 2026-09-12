@@ -9,10 +9,10 @@ const { puzzle, heading = 'Jumble' } = Astro.props;
 const scrambledLetters = puzzle.scrambled.replace(/\s+/g, '').toUpperCase().split('');
 const answerLen = puzzle.answer.replace(/\s+/g, '').length;
 const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
+const hintText = puzzle.clue.toLowerCase().startsWith('hint:') ? puzzle.clue : `Hint: ${puzzle.clue}`;
 ---
 <section class="jumble-box" aria-label={heading}>
   <h2 class="section-label">{heading}</h2>
-  <p class="jumble-clue">{puzzle.clue}</p>
 
   <div class="jumble-word-block">
     <div class="jumble-tiles" aria-label={`Scrambled: ${puzzle.scrambled}`}>
@@ -24,4 +24,6 @@ const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
       {answerBlanks.map(() => <span class="jumble-blank" />)}
     </div>
   </div>
+
+  <p class="jumble-clue" title="Upside-down hint">{hintText}</p>
 </section>

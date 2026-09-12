@@ -2,13 +2,22 @@
 import type { ComicStripData } from '../data/types';
 interface Props {
   comic: ComicStripData;
+  slotIndex?: number;
 }
-const { comic } = Astro.props;
+const { comic, slotIndex = 0 } = Astro.props;
 const href = comic.link || comic.imageUrl || '';
 /** Print-friendly display: drop https:// and leading www. */
 const displayUrl = href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+const feedId = comic.feedId || comic.id.split('-')[0] || comic.id;
 ---
-<section class="comic-box" aria-label={comic.title} data-comic-id={comic.id} data-comic-live={comic.live ? '1' : '0'}>
+<section
+  class="comic-box"
+  aria-label={comic.title}
+  data-comic-id={comic.id}
+  data-comic-feed-id={feedId}
+  data-comic-slot={slotIndex}
+  data-comic-live={comic.live ? '1' : '0'}
+>
   <h2 class="section-label">{comic.title}</h2>
   <div class="comic-frame">
     <div class="comic-credit">
@@ -34,5 +43,9 @@ const displayUrl = href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
         <a class="comic-source-url" href={href} target="_blank" rel="noopener noreferrer" data-fit-url>{displayUrl}</a>
       </p>
     ) : null}
+    <div class="comic-cycle-controls" role="toolbar" aria-label="Change comic strip">
+      <button type="button" class="comic-cycle-btn" data-comic-cycle="prev" title="Previous comic strip" aria-label="Previous comic strip">◂ Prev</button>
+      <button type="button" class="comic-cycle-btn" data-comic-cycle="next" title="Next comic strip" aria-label="Next comic strip">Next ▸</button>
+    </div>
   </div>
 </section>

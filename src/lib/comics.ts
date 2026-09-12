@@ -136,6 +136,7 @@ function feedHomeUrl(feed: ComicFeedConfig): string {
 function itemToStrip(
   feed: ComicFeedConfig,
   item: Record<string, unknown>,
+  index: number = 0,
 ): ComicStripData | null {
   const imageUrl = pickImage(item);
   if (!imageUrl) return null;
@@ -147,8 +148,11 @@ function itemToStrip(
     .trim()
     .slice(0, 180);
   const publishedAt = pickPublishedAt(item);
+  const keySuffix = (link || imageUrl).replace(/[^a-zA-Z0-9]/g, '').slice(-10) || String(index);
+  const id = `${feed.id}-${index}-${keySuffix}`;
   return {
-    id: feed.id,
+    id,
+    feedId: feed.id,
     title: feed.title,
     credit: feed.credit,
     caption: caption || title,
@@ -159,13 +163,17 @@ function itemToStrip(
   };
 }
 
-async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
+async function fetchFeedComics(feed: ComicFeedConfig, limit: number = 6): Promise<ComicStripData[]> {
   try {
-    const res = await fetchWithCorsFallback(feed.url, {
-      headers: {
-        Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+    const res = await fetchWithCorsFallback(
+      feed.url,
+      {
+        headers: {
+          Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+        },
       },
-    }, 12000);
+      12000,
+    );
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const xml = await res.text();
     if (!xml.trim()) throw new Error('empty body');
@@ -173,17 +181,19 @@ async function fetchOne(feed: ComicFeedConfig): Promise<ComicStripData> {
     const items = extractItems(doc);
     if (!items.length) throw new Error('empty feed');
 
-    let withImage: ComicStripData | null = null;
-    for (const item of items.slice(0, 8)) {
-      const strip = itemToStrip(feed, item);
-      if (!strip?.imageUrl) continue;
-      if (!withImage) withImage = strip;
-      if (await imageReachable(strip.imageUrl)) return strip;
+    const strips: ComicStripData[] = [];
+    let idx = 0;
+    for (const item of items) {
+      const strip = itemToStrip(feed, item, idx);
+      if (strip?.imageUrl) {
+        strips.push(strip);
+        idx++;
+        if (strips.length >= limit) break;
+      }
     }
-    if (withImage) return withImage;
-    throw new Error('no comic image in feed');
-  } catch (err: any) {
-    throw err;
+    return strips;
+  } catch {
+    return [];
   }
 }
 
@@ -196,29 +206,47 @@ export function getComicsPool(): ComicStripData[] {
 
 /**
  * Fetch comics. Optional enabledIds filters sources.
- * Skips feeds whose images fail to load and continues to the next source
- * until MAX_COMICS_ON_PAGE live strips are filled (or candidates run out).
+ * Ingests multiple candidate strips per feed into lastComicsPool,
+ * and returns the initial strips (up to MAX_COMICS_ON_PAGE).
  */
 export async function fetchComics(enabledIds?: string[] | null): Promise<ComicStripData[]> {
   const enabled = enabledIds?.length ? new Set(enabledIds) : null;
   const feeds = COMIC_FEEDS.filter((f) => !enabled || enabled.has(f.id));
-  const live: ComicStripData[] = [];
+  const pool: ComicStripData[] = [];
 
   for (const feed of feeds) {
-    try {
-      live.push(await fetchOne(feed));
-    } catch {
-      // Skip — try next feed
-    }
+    const strips = await fetchFeedComics(feed, 6);
+    pool.push(...strips);
   }
 
-  live.sort((a, b) => {
+  pool.sort((a, b) => {
     const ta = a.publishedAt ? Date.parse(a.publishedAt) : 0;
     const tb = b.publishedAt ? Date.parse(b.publishedAt) : 0;
     if (tb !== ta) return tb - ta;
     return 0;
   });
 
-  lastComicsPool = live;
-  return live.slice(0, MAX_COMICS_ON_PAGE);
+  lastComicsPool = pool;
+
+  // Pick initial strips (up to MAX_COMICS_ON_PAGE = 2), preferring different feeds for variety
+  const initial: ComicStripData[] = [];
+  const usedFeedIds = new Set<string>();
+  for (const strip of pool) {
+    if (initial.length >= MAX_COMICS_ON_PAGE) break;
+    const fId = strip.feedId || strip.id.split('-')[0];
+    if (!usedFeedIds.has(fId)) {
+      initial.push(strip);
+      usedFeedIds.add(fId);
+    }
+  }
+  if (initial.length < MAX_COMICS_ON_PAGE) {
+    for (const strip of pool) {
+      if (initial.length >= MAX_COMICS_ON_PAGE) break;
+      if (!initial.some((s) => s.id === strip.id)) {
+        initial.push(strip);
+      }
+    }
+  }
+
+  return initial;
 }

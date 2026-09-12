@@ -522,7 +522,15 @@ type SheetState = {
   pageNumber: number;
 };
 
-function createSheet(host: HTMLElement, pageNumber: number, withBanner: boolean): SheetState {
+function escapeHtml(t: string): string {
+  return (t || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function createSheet(host: HTMLElement, pageNumber: number, withBanner: boolean, paperName = 'THE DAILY MIKE'): SheetState {
   const sheet = document.createElement('section');
   sheet.className = 'page-sheet';
   sheet.setAttribute('aria-label', `Page ${pageNumber}`);
@@ -535,7 +543,7 @@ function createSheet(host: HTMLElement, pageNumber: number, withBanner: boolean)
         <div class="page-col" data-col="1"></div>
         <div class="page-col" data-col="2"></div>
       </div>
-      <footer class="page-sheet-folio"><span>THE DAILY MIKE</span><span>Page ${pageNumber}</span></footer>
+      <footer class="page-sheet-folio"><span>${escapeHtml(paperName)}</span><span>Page ${pageNumber}</span></footer>
     </div>`;
   host.appendChild(sheet);
   const cols = Array.from(sheet.querySelectorAll<HTMLElement>('.page-col'));
@@ -546,12 +554,12 @@ function currentColumn(state: SheetState): HTMLElement {
   return state.columns[Math.min(state.colIndex, state.columns.length - 1)];
 }
 
-function advanceColumn(host: HTMLElement, state: SheetState): SheetState {
+function advanceColumn(host: HTMLElement, state: SheetState, paperName = 'THE DAILY MIKE'): SheetState {
   if (state.colIndex < state.columns.length - 1) {
     state.colIndex += 1;
     return state;
   }
-  return createSheet(host, state.pageNumber + 1, false);
+  return createSheet(host, state.pageNumber + 1, false, paperName);
 }
 
 export function fitGlanceBox(box: HTMLElement | null) {
@@ -624,7 +632,8 @@ export function fitGlanceBox(box: HTMLElement | null) {
  * Paginate the live `#edition-document` into visible letter `.page-sheet` pages.
  * Hides the continuous source edition (kept for cloning).
  */
-export async function paginateEdition(): Promise<PaginateResult> {
+export async function paginateEdition(options: { paperName?: string } = {}): Promise<PaginateResult> {
+  const paperName = options.paperName || 'THE DAILY MIKE';
   const editionEl = document.getElementById('edition-document') as HTMLElement | null;
   const shell = document.getElementById('newspaper') as HTMLElement | null;
   if (!editionEl || !shell) return { pageCount: 0 };
@@ -638,7 +647,7 @@ export async function paginateEdition(): Promise<PaginateResult> {
   const host = ensureHost(shell);
   host.innerHTML = '';
 
-  let state = createSheet(host, 1, true);
+  let state = createSheet(host, 1, true, paperName);
   const bannerHost = state.sheet.querySelector('.page-sheet-banner');
   if (bannerHost) {
     banner.forEach((unit) => bannerHost.appendChild(unit));
@@ -678,7 +687,7 @@ export async function paginateEdition(): Promise<PaginateResult> {
     // Move to a fresh column/page (games/comics move whole; never scale).
     if (unitRef.unit.parentElement === col) unitRef.unit.remove();
 
-    state = advanceColumn(host, state);
+    state = advanceColumn(host, state, paperName);
     col = currentColumn(state);
     col.appendChild(unitRef.unit);
 
@@ -690,12 +699,12 @@ export async function paginateEdition(): Promise<PaginateResult> {
 
     // Atomic content taller than a column (e.g. comic before CSS max-height applies):
     // leave it and advance — never scale fonts.
-    state = advanceColumn(host, state);
+    state = advanceColumn(host, state, paperName);
   }
 
   // Always place comics/games/history on a dedicated last page (bottom ~2/3).
   if (features) {
-    const featState = createSheet(host, state.pageNumber + 1, false);
+    const featState = createSheet(host, state.pageNumber + 1, false, paperName);
     featState.sheet.classList.add('page-sheet--features');
     const inner = featState.sheet.querySelector('.page-sheet-inner');
     const cols = featState.sheet.querySelector('.page-sheet-columns');
@@ -739,7 +748,7 @@ export async function paginateEdition(): Promise<PaginateResult> {
     sheet.setAttribute('aria-label', `Page ${n}`);
     const folio = sheet.querySelector('.page-sheet-folio');
     if (folio) {
-      folio.innerHTML = `<span>THE DAILY MIKE</span><span>Page ${n}</span>`;
+      folio.innerHTML = `<span>${escapeHtml(paperName)}</span><span>Page ${n}</span>`;
     }
   });
 

@@ -55,6 +55,8 @@ export interface GrokBriefStore {
 }
 
 export interface PaperSettings {
+  paperName: string;
+  paperTagline: string;
   zip: string;
   /**
    * When false (default), news columns come from the Grok brief only.
@@ -73,6 +75,8 @@ export interface PaperSettings {
 /** Sensible defaults — Northbrook ZIP, RSS off (Grok is the news backbone). */
 export function defaultSettings(): PaperSettings {
   return {
+    paperName: 'The Daily Mike',
+    paperTagline: 'Independent · Personal · Daily',
     zip: '60062',
     rssEnabled: false,
     enabledFeedIds: [],
@@ -98,6 +102,8 @@ export function loadSettings(): PaperSettings {
         ? parsed.rssEnabled
         : enabledFeedIds.length > 0 || (Array.isArray(parsed.customFeeds) && parsed.customFeeds.length > 0);
     return {
+      paperName: typeof parsed.paperName === 'string' && parsed.paperName.trim() ? parsed.paperName.trim() : base.paperName,
+      paperTagline: typeof parsed.paperTagline === 'string' && parsed.paperTagline.trim() ? parsed.paperTagline.trim() : base.paperTagline,
       zip: typeof parsed.zip === 'string' && /^\d{5}$/.test(parsed.zip) ? parsed.zip : base.zip,
       rssEnabled,
       enabledFeedIds,
@@ -186,6 +192,8 @@ export function normalizePaperSettings(parsed: Partial<PaperSettings> | null | u
       : enabledFeedIds.length > 0 ||
         (Array.isArray(parsed.customFeeds) && parsed.customFeeds.length > 0);
   return {
+    paperName: typeof parsed.paperName === 'string' && parsed.paperName.trim() ? parsed.paperName.trim() : base.paperName,
+    paperTagline: typeof parsed.paperTagline === 'string' && parsed.paperTagline.trim() ? parsed.paperTagline.trim() : base.paperTagline,
     zip: typeof parsed.zip === 'string' && /^\d{5}$/.test(parsed.zip) ? parsed.zip : base.zip,
     rssEnabled,
     enabledFeedIds,

@@ -14,8 +14,8 @@ const { dateDisplay, pageLabel = 'Morning Edition' } = Astro.props;
     <span>Northbrook, Illinois · 60062</span>
     <span>{pageLabel}</span>
   </div>
-  <h1 class="masthead-title">{PAPER_NAME_UPPER}</h1>
-  <p class="masthead-tagline">{PAPER_TAGLINE}</p>
+  <h1 class="masthead-title" data-masthead-title>{PAPER_NAME_UPPER}</h1>
+  <p class="masthead-tagline" data-masthead-tagline>{PAPER_TAGLINE}</p>
   <div class="masthead-date-line">
     <span>{dateDisplay}</span>
     <span>VERSION 1.0</span>

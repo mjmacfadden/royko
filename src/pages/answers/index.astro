@@ -38,6 +38,7 @@ import { PAPER_NAME_UPPER, PAPER_TAGLINE } from '../../lib/site';
       import { puzzlesForDate } from '../../data/puzzles';
       import { chicagoDateKey } from '../../lib/dateFilter';
       import { PAPER_NAME_UPPER } from '../../lib/site';
+      import { loadSettings } from '../../lib/settings';
 
       function escapeHtml(t: string) {
         return (t || '')
@@ -59,7 +60,16 @@ import { PAPER_NAME_UPPER, PAPER_TAGLINE } from '../../lib/site';
         const puzzles = puzzlesForDate(dateObj);
         const { crossword, jumbles, trivia } = puzzles;
 
-        document.title = `Puzzle answers — ${isoDate} · ${PAPER_NAME_UPPER}`;
+        const settings = loadSettings();
+        const nameUpper = (settings.paperName || 'The Daily Mike').trim().toUpperCase();
+        const tagline = (settings.paperTagline || 'Independent · Personal · Daily').trim();
+
+        document.title = `Puzzle answers — ${isoDate} · ${nameUpper}`;
+
+        const kicker = document.querySelector('.answers-kicker');
+        if (kicker) kicker.textContent = nameUpper;
+        const tag = document.querySelector('.answers-tagline');
+        if (tag) tag.textContent = tagline;
 
         const dateLabel = document.getElementById('answers-date-label');
         if (dateLabel) {
