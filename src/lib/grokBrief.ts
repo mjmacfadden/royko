@@ -129,6 +129,9 @@ function isBullet(line: string): string | null {
   return m ? m[1].trim() : null;
 }
 
+const MARKDOWN_IMAGE_URL_PATTERN =
+  'https?:\\/\\/(?:[^\\s()]|\\((?:[^\\s()]|\\([^\\s()]*\\))*\\))+';
+
 /**
  * Markdown / near-Markdown image alone on a line:
  *   ![alt text](https://example.com/img.jpg)   ← correct Markdown
@@ -139,17 +142,25 @@ function isBullet(line: string): string | null {
 export function extractMarkdownImage(line: string): string | null {
   const t = line.trim();
 
-  // Standard: ![alt](url) or ![alt](url "title")
-  let m = t.match(/^!\[([^\]]*)\]\(\s*(https?:\/\/[^\s)]+?)(?:\s+"[^"]*")?\s*\)\s*$/);
+  // Standard: ![alt](url) or ![alt](url "title") or ![alt](<url>)
+  let m = t.match(
+    new RegExp(
+      `^!\\[([^\\]]*)\\]\\(\\s*(?:<([^>]+)>|(${MARKDOWN_IMAGE_URL_PATTERN}))(?:\\s+"[^"]*")?\\s*\\)$`,
+    ),
+  );
   if (m) {
-    const url = m[2].trim();
+    const url = (m[2] || m[3] || '').trim();
     if (/^https?:\/\//i.test(url)) return url;
   }
 
-  // Loose: !(url) or ! (url) — no [alt] brackets (Grok often emits this)
-  m = t.match(/^!\s*\(\s*(https?:\/\/[^\s)]+?)\s*\)\s*$/);
+  // Loose: !(url) or ! (url) or !(<url>)
+  m = t.match(
+    new RegExp(
+      `^!\\s*\\(\\s*(?:<([^>]+)>|(${MARKDOWN_IMAGE_URL_PATTERN}))\\s*\\)$`,
+    ),
+  );
   if (m) {
-    const url = m[1].trim();
+    const url = (m[1] || m[2] || '').trim();
     if (/^https?:\/\//i.test(url)) return url;
   }
 
@@ -185,8 +196,20 @@ export function extractImageMarker(line: string): string | null {
 /** Strip image markers that leaked into body prose. */
 export function stripImageMarkers(text: string): string {
   return text
-    .replace(/!\[[^\]]*\]\(\s*https?:\/\/[^)]+?\s*\)/g, ' ')
-    .replace(/!\s*\(\s*https?:\/\/[^)]+?\s*\)/g, ' ')
+    .replace(
+      new RegExp(
+        `!\\[[^\\]]*\\]\\(\\s*(?:<[^>]+>|(?:${MARKDOWN_IMAGE_URL_PATTERN}))(?:\\s+"[^"]*")?\\s*\\)`,
+        'g',
+      ),
+      ' ',
+    )
+    .replace(
+      new RegExp(
+        `!\\s*\\(\\s*(?:<[^>]+>|(?:${MARKDOWN_IMAGE_URL_PATTERN}))\\s*\\)`,
+        'g',
+      ),
+      ' ',
+    )
     .replace(/\*{4}\s*https?:\/\/[^\s*]+?(?:\s*\([^)]*\))?\s*\*{4}/g, ' ')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/ *\n */g, '\n')

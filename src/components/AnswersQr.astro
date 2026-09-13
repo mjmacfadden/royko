@@ -19,7 +19,9 @@ const svg = await QRCode.toString(url, {
   <h2 class="section-label">Puzzle Answers</h2>
   <div class="answers-qr-body">
     <div class="answers-qr-svg" set:html={svg} />
-    <p class="answers-qr-caption">{caption}</p>
+    <p class="answers-qr-caption">
+      <a href={url} target="_blank" rel="noopener noreferrer">{caption}</a>
+    </p>
     <p class="answers-qr-url screen-only">
       <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
     </p>

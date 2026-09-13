@@ -759,13 +759,9 @@ export async function paginateEdition(options: { paperName?: string } = {}): Pro
     if (inner) {
       const wrap = document.createElement('div');
       wrap.className = 'page-sheet-features';
-      const spacer = document.createElement('div');
-      spacer.className = 'page-sheet-features-spacer';
-      spacer.setAttribute('aria-hidden', 'true');
       const body = document.createElement('div');
       body.className = 'page-sheet-features-body';
       body.appendChild(features);
-      wrap.appendChild(spacer);
       wrap.appendChild(body);
       const folio = inner.querySelector('.page-sheet-folio');
       if (folio) inner.insertBefore(wrap, folio);

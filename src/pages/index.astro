@@ -270,6 +270,7 @@ const hasWireStories =
         type BriefStoryCard,
       } from '../lib/grokBrief';
       import { paginateEdition, getPageSheetCount, scrollToPageSheet } from '../lib/pageSheets';
+      import { htmlToMarkdown } from '../lib/htmlToMarkdown';
 
       const indicator = document.getElementById('page-indicator');
       const prevBtn = document.getElementById('prev-page') as HTMLButtonElement | null;
@@ -493,27 +494,45 @@ const hasWireStories =
           if (img) {
             img.style.objectPosition = `center ${posY}%`;
             if (customUrl) {
-              img.src = customUrl;
+              if (customUrl === '__none__') {
+                img.src = '';
+                frame.classList.add('is-hidden');
+              } else {
+                img.src = customUrl;
+                frame.classList.remove('is-hidden');
+              }
             }
           }
         });
       }
 
       function leadStoryImageHtml(imageUrl?: string) {
-        if (!imageUrl) return '';
-        const posY = loadLeadImagePosY();
         const customUrl = loadLeadCustomUrl();
-        const displayUrl = customUrl || imageUrl;
-        return `<div class="lead-image-frame" data-lead-frame>
-          <img class="story-image" data-lead-image data-original-src="${escapeHtml(imageUrl)}" src="${escapeHtml(displayUrl)}" alt="" loading="lazy" decoding="async" style="object-position: center ${posY}%;" />
+        const displayUrl = customUrl === '__none__' ? '' : (customUrl || imageUrl || '');
+        const posY = loadLeadImagePosY();
+        const originalSrc = imageUrl || '';
+        const isHidden = !displayUrl;
+
+        return `<div class="lead-image-frame ${isHidden ? 'is-hidden' : ''}" data-lead-frame>
+          <img class="story-image" data-lead-image data-original-src="${escapeHtml(originalSrc)}" src="${escapeHtml(displayUrl)}" alt="" loading="lazy" decoding="async" style="object-position: center ${posY}%;" />
           <div class="lead-image-controls" role="toolbar" aria-label="Lead image options">
             <button type="button" class="lead-image-btn" data-lead-image-change title="Change image" aria-label="Change image">Change Image</button>
+            <button type="button" class="lead-image-btn" data-lead-image-delete title="Delete image" aria-label="Delete image">Delete</button>
           </div>
-          <div class="lead-image-url-bar" data-lead-image-bar hidden>
-            <input type="url" class="lead-image-url-input" data-lead-image-input placeholder="Enter direct image URL..." aria-label="New lead image URL" value="${customUrl ? escapeHtml(customUrl) : ''}" />
-            <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>
-            <button type="button" class="lead-image-btn" data-lead-image-reset title="Reset to original story image">Reset</button>
-            <button type="button" class="lead-image-btn" data-lead-image-cancel>Cancel</button>
+          <div class="lead-image-placeholder-box" data-lead-placeholder-box>
+            <div class="lead-placeholder-header">
+              <span class="lead-placeholder-title">Lead Image</span>
+              <div style="display:flex;gap:0.35rem;">
+                ${originalSrc ? `<button type="button" class="lead-image-btn" data-lead-image-reset title="Reset to original story image">Reset</button>` : ''}
+                <button type="button" class="lead-image-btn" data-lead-image-delete title="Delete image" aria-label="Delete image">Delete</button>
+              </div>
+            </div>
+            <div class="lead-placeholder-form">
+              <input type="url" class="lead-image-url-input" data-lead-image-input placeholder="Enter direct image URL (https://...)..." aria-label="Lead image URL" value="${escapeHtml(customUrl && customUrl !== '__none__' ? customUrl : (customUrl === '__none__' ? '' : displayUrl))}" />
+              <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>
+              <button type="button" class="lead-image-btn" data-lead-image-cancel>Cancel</button>
+            </div>
+            <p class="lead-placeholder-hint">Direct link to JPG, PNG, GIF, WebP, or SVG</p>
           </div>
         </div>`;
       }
@@ -599,9 +618,8 @@ const hasWireStories =
             .map(
               (s) => `<article class="brief ${s.brief ? 'brief-item' : ''}">
               <h3>${s.url ? `<a href="${s.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(s.title)}</a>` : escapeHtml(s.title)}</h3>
-              ${storyImageHtml(s.imageUrl)}
               <p>${escapeHtml(s.description || '')}</p>
-              <p class="source">${escapeHtml(s.source)}</p>
+              <div class="source">${escapeHtml(s.source || '')}</div>
             </article>`,
             )
             .join('')}
@@ -645,8 +663,15 @@ const hasWireStories =
           const existing = root.querySelector('.roundup-box');
           if (existing) roundupHtml = existing.outerHTML;
         }
-        root.innerHTML = `<article class="lead-story">
-          <h2 class="lead-hed">${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
+        const customUrl = loadLeadCustomUrl();
+        const hasImg = customUrl === '__none__' ? false : Boolean(story.imageUrl || customUrl);
+        root.innerHTML = `<article class="lead-story ${hasImg ? 'has-image' : 'no-image'}" data-lead-story>
+          <div class="lead-hed-wrap" data-lead-hed-wrap>
+            <h2 class="lead-hed">${story.url ? `<a href="${story.url}" target="_blank" rel="noopener noreferrer">${escapeHtml(story.title)}</a>` : escapeHtml(story.title)}</h2>
+            <div class="lead-hed-controls" role="toolbar" aria-label="Lead story options">
+              <button type="button" class="lead-image-btn" data-lead-image-add title="Add image to lead story" aria-label="Add image">Add Image</button>
+            </div>
+          </div>
           ${leadStoryImageHtml(story.imageUrl)}
           <p class="lead-deck">${escapeHtml(story.description || '')}</p>
           <p class="lead-meta">${escapeHtml(story.source || '')}</p>
@@ -974,6 +999,11 @@ const hasWireStories =
         const trimmed = text.trim();
         ensureRssBootstrap();
 
+        // Clear custom lead image URL whenever a new brief is applied or cleared
+        try {
+          localStorage.removeItem(LEAD_CUSTOM_URL_KEY);
+        } catch {}
+
         if (!trimmed) {
           clearGrokBrief();
           lastGrok = null;
@@ -1292,6 +1322,40 @@ const hasWireStories =
         pasteDialog?.close();
       });
 
+      function attachRichTextPasteHandler(el: HTMLTextAreaElement | null) {
+        if (!el) return;
+        el.addEventListener('paste', (e: ClipboardEvent) => {
+          const clipboardData = e.clipboardData;
+          if (!clipboardData) return;
+
+          const html = clipboardData.getData('text/html');
+          if (!html || !html.trim()) return;
+
+          const markdown = htmlToMarkdown(html);
+          if (!markdown || !markdown.trim()) return;
+
+          // Check if HTML actually contained rich elements or images
+          const plainText = clipboardData.getData('text/plain') || '';
+          const hasRichContent =
+            /<(?:img|h[1-6]|strong|b|em|i|a|ul|ol|li|blockquote|figure)\b/i.test(html);
+          if (!hasRichContent && plainText.trim()) {
+            return; // Allow native plain text paste if no rich elements were present
+          }
+
+          e.preventDefault();
+          const start = el.selectionStart ?? 0;
+          const end = el.selectionEnd ?? 0;
+          const currentVal = el.value;
+          const nextVal = currentVal.substring(0, start) + markdown + currentVal.substring(end);
+          el.value = nextVal;
+          el.selectionStart = el.selectionEnd = start + markdown.length;
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }
+
+      attachRichTextPasteHandler(document.getElementById('grok-paste-quick') as HTMLTextAreaElement | null);
+      attachRichTextPasteHandler(document.getElementById('grok-brief-input') as HTMLTextAreaElement | null);
+
       function shortComicUrl(href: string) {
         return href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
       }
@@ -1545,23 +1609,50 @@ const hasWireStories =
           return;
         }
 
+        // Lead story Add Image button (hover over title)
+        const addBtn = t?.closest?.('[data-lead-image-add]') as HTMLElement | null;
+        if (addBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+            const frame = story.querySelector<HTMLElement>('.lead-image-frame');
+            if (frame) {
+              frame.classList.remove('is-hidden');
+              frame.classList.add('is-editing');
+            }
+          });
+          schedulePaginate();
+          window.setTimeout(() => {
+            const input = document.querySelector<HTMLInputElement>(
+              '#paged-edition [data-lead-image-input], .lead-image-url-input',
+            );
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          }, 80);
+          return;
+        }
+
         // Lead image Change Image button
         const changeBtn = t?.closest?.('[data-lead-image-change]') as HTMLElement | null;
         if (changeBtn) {
           e.preventDefault();
           e.stopPropagation();
-          const frame = changeBtn.closest('.lead-image-frame') as HTMLElement | null;
-          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
-          const input = frame?.querySelector<HTMLInputElement>('[data-lead-image-input]');
-          const img = frame?.querySelector<HTMLImageElement>('.story-image');
-          if (bar) {
-            bar.hidden = false;
+          document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((frame) => {
+            frame.classList.remove('is-hidden');
+            frame.classList.add('is-editing');
+          });
+          schedulePaginate();
+          window.setTimeout(() => {
+            const input = document.querySelector<HTMLInputElement>(
+              '#paged-edition [data-lead-image-input], .lead-image-url-input',
+            );
             if (input) {
-              input.value = img?.src || '';
               input.focus();
               input.select();
             }
-          }
+          }, 80);
           return;
         }
 
@@ -1570,8 +1661,47 @@ const hasWireStories =
         if (cancelBtn) {
           e.preventDefault();
           e.stopPropagation();
-          const bar = cancelBtn.closest<HTMLElement>('[data-lead-image-bar]');
-          if (bar) bar.hidden = true;
+          document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+            const frame = story.querySelector<HTMLElement>('.lead-image-frame');
+            const img = frame?.querySelector<HTMLImageElement>('.story-image');
+            const customUrl = loadLeadCustomUrl();
+            const orig = img?.getAttribute('data-original-src');
+            const currentSrc = customUrl || orig || img?.src || '';
+            frame?.classList.remove('is-editing', 'is-failed');
+            if (!currentSrc) {
+              frame?.classList.add('is-hidden');
+              story.classList.add('no-image');
+              story.classList.remove('has-image');
+            } else {
+              frame?.classList.remove('is-hidden');
+              story.classList.add('has-image');
+              story.classList.remove('no-image');
+            }
+          });
+          schedulePaginate();
+          return;
+        }
+
+        // Lead image Delete / Remove button
+        const deleteBtn = t?.closest?.('[data-lead-image-delete]') as HTMLElement | null;
+        if (deleteBtn) {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            localStorage.setItem(LEAD_CUSTOM_URL_KEY, '__none__');
+          } catch {}
+          document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+            story.classList.remove('has-image', 'lead-image-failed');
+            story.classList.add('no-image');
+            const frame = story.querySelector<HTMLElement>('.lead-image-frame');
+            if (frame) {
+              frame.classList.remove('is-editing', 'is-failed');
+              frame.classList.add('is-hidden');
+              const img = frame.querySelector<HTMLImageElement>('.story-image');
+              if (img) img.src = '';
+            }
+          });
+          schedulePaginate();
           return;
         }
 
@@ -1580,19 +1710,25 @@ const hasWireStories =
         if (resetBtn) {
           e.preventDefault();
           e.stopPropagation();
-          const frame = resetBtn.closest<HTMLElement>('.lead-image-frame');
-          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
           try {
             localStorage.removeItem(LEAD_CUSTOM_URL_KEY);
           } catch {}
-          document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((f) => {
-            const img = f.querySelector<HTMLImageElement>('.story-image');
+          document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+            const frame = story.querySelector<HTMLElement>('.lead-image-frame');
+            const img = frame?.querySelector<HTMLImageElement>('.story-image');
             const orig = img?.getAttribute('data-original-src');
-            if (img && orig) {
-              img.src = orig;
+            frame?.classList.remove('is-editing', 'is-failed');
+            if (orig) {
+              story.classList.remove('no-image', 'lead-image-failed');
+              story.classList.add('has-image');
+              frame?.classList.remove('is-hidden');
+              if (img) img.src = orig;
+            } else {
+              story.classList.remove('has-image', 'lead-image-failed');
+              story.classList.add('no-image');
+              frame?.classList.add('is-hidden');
             }
           });
-          if (bar) bar.hidden = true;
           schedulePaginate();
           return;
         }
@@ -1603,25 +1739,90 @@ const hasWireStories =
           e.preventDefault();
           e.stopPropagation();
           const frame = saveBtn.closest<HTMLElement>('.lead-image-frame');
-          const bar = frame?.querySelector<HTMLElement>('[data-lead-image-bar]');
           const input = frame?.querySelector<HTMLInputElement>('[data-lead-image-input]');
           const newUrl = input?.value.trim();
           if (newUrl) {
             try {
               localStorage.setItem(LEAD_CUSTOM_URL_KEY, newUrl);
             } catch {}
-            document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((f) => {
-              const img = f.querySelector<HTMLImageElement>('.story-image');
-              if (img) {
-                img.src = newUrl;
+            document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+              story.classList.remove('no-image', 'lead-image-failed');
+              story.classList.add('has-image');
+              const f = story.querySelector<HTMLElement>('.lead-image-frame');
+              if (f) {
+                f.classList.remove('is-editing', 'is-failed', 'is-hidden');
+                const img = f.querySelector<HTMLImageElement>('.story-image');
+                if (img) img.src = newUrl;
               }
             });
-            if (bar) bar.hidden = true;
             schedulePaginate();
           }
           return;
         }
       });
+
+      // Keep input values in sync across document versions (#edition-document vs #paged-edition)
+      document.addEventListener('input', (e) => {
+        const input = e.target as HTMLInputElement | null;
+        if (!input || !input.matches('[data-lead-image-input]')) return;
+        const val = input.value;
+        document.querySelectorAll<HTMLInputElement>('[data-lead-image-input]').forEach((el) => {
+          if (el !== input) {
+            el.value = val;
+          }
+        });
+      });
+
+      // Listen for image load errors on lead images
+      document.addEventListener(
+        'error',
+        (e) => {
+          const t = e.target as HTMLElement | null;
+          if (!t || t.tagName !== 'IMG') return;
+          if (t.matches('[data-lead-image]') || t.closest('.lead-image-frame')) {
+            const firstFrame = document.querySelector<HTMLElement>('.lead-image-frame');
+            if (firstFrame && firstFrame.classList.contains('is-failed')) return;
+            document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+              story.classList.remove('has-image');
+              story.classList.add('no-image', 'lead-image-failed');
+            });
+            document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((frame) => {
+              frame.classList.add('is-failed');
+              if (!frame.classList.contains('is-editing')) {
+                frame.classList.add('is-hidden');
+              }
+            });
+            schedulePaginate();
+          }
+        },
+        true,
+      );
+
+      // Listen for image load success on lead images
+      document.addEventListener(
+        'load',
+        (e) => {
+          const t = e.target as HTMLElement | null;
+          if (!t || t.tagName !== 'IMG') return;
+          if (t.matches('[data-lead-image]') || t.closest('.lead-image-frame')) {
+            const firstFrame = document.querySelector<HTMLElement>('.lead-image-frame');
+            if (firstFrame && firstFrame.classList.contains('is-failed')) {
+              document.querySelectorAll<HTMLElement>('.lead-story').forEach((story) => {
+                story.classList.remove('lead-image-failed', 'no-image');
+                story.classList.add('has-image');
+              });
+              document.querySelectorAll<HTMLElement>('.lead-image-frame').forEach((frame) => {
+                frame.classList.remove('is-failed');
+                if (!frame.classList.contains('is-editing')) {
+                  frame.classList.remove('is-hidden');
+                }
+              });
+              schedulePaginate();
+            }
+          }
+        },
+        true,
+      );
 
       // Drag-to-reposition lead image
       let isDraggingLead = false;
@@ -1632,7 +1833,7 @@ const hasWireStories =
       document.addEventListener('pointerdown', (e) => {
         const t = e.target as HTMLElement | null;
         if (!t || !t.matches('.lead-image-frame .story-image')) return;
-        if (t.closest('[data-lead-image-bar]') || t.closest('.lead-image-controls')) return;
+        if (t.closest('[data-lead-placeholder-box]') || t.closest('.lead-image-controls')) return;
         e.preventDefault();
         const frame = t.closest<HTMLElement>('.lead-image-frame');
         if (!frame) return;
@@ -1642,7 +1843,7 @@ const hasWireStories =
         startPosY = loadLeadImagePosY();
         activeFrame = frame;
         frame.classList.add('is-dragging');
-        t.setPointerCapture?.(e.pointerId);
+        (t as HTMLElement).setPointerCapture?.(e.pointerId);
       });
 
       document.addEventListener('pointermove', (e) => {
