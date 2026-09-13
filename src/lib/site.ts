@@ -3,16 +3,15 @@
  * Works seamlessly with GitHub Pages subpaths (e.g. /royko/) as well as custom domains.
  */
 export function getSiteBaseUrl(): string {
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
-  if (typeof window !== 'undefined' && window.location?.origin) {
-    return `${window.location.origin}${base}`;
-  }
   const fromEnv =
     (typeof import.meta !== 'undefined' &&
       (import.meta as ImportMeta & { env?: Record<string, string> }).env?.PUBLIC_SITE_URL) ||
     '';
-  const raw = (fromEnv || 'http://localhost:4321').trim().replace(/\/$/, '');
-  return `${raw}${base}`;
+  if (fromEnv) {
+    const base = (import.meta.env.BASE_URL || '/').replace(/\/$/, '');
+    return `${fromEnv.trim().replace(/\/$/, '')}${base}`;
+  }
+  return 'http://mjmacfadden.github.io/royko';
 }
 
 export function answersUrlForDate(date: string): string {

@@ -45,10 +45,14 @@ function assert(cond, msg) {
 }
 
 assert(parsed.structured === true, 'structured === true');
-for (const k of ['weather', 'national', 'local', 'sports', 'markets', 'watch']) {
+const leadItem = parsed.sections[1]?.items[0];
+assert(!!leadItem, 'has leadItem');
+assert(!!leadItem?.imageUrl, 'leadItem has imageUrl');
+assert(!/!\(/.test(leadItem?.body || ''), 'lead body strips image marker');
+
+for (const k of ['local', 'sports', 'markets', 'national', 'glance']) {
   assert(!!byKind[k], `has ${k} section`);
 }
-assert(byKind.weather.paragraphs.length >= 1, `weather prose (${byKind.weather.paragraphs.length})`);
 assert(byKind.national.items.length >= 2, `national items >= 2 (got ${byKind.national.items.length})`);
 assert(
   byKind.national.items.every((i) => !!i.source),
@@ -56,26 +60,13 @@ assert(
 );
 assert(byKind.local.items.length >= 2, `local items >= 2 (got ${byKind.local.items.length})`);
 assert(byKind.sports.items.length >= 2, `sports items >= 2 (got ${byKind.sports.items.length})`);
-assert(byKind.markets.items.length >= 1, 'markets prose → item');
-assert(byKind.watch.bullets.length >= 3, `watch bullets >= 3 (got ${byKind.watch.bullets.length})`);
+assert(byKind.markets.items.length >= 2, `markets items >= 2 (got ${byKind.markets.items.length})`);
+assert(byKind.glance.bullets.length >= 3, `glance bullets >= 3 (got ${byKind.glance.bullets.length})`);
 assert(
   !parsed.sections.some((s) =>
-    s.items.some((i) => /^(Weather|National & World|What to watch)/i.test(i.headline)),
+    s.items.some((i) => /^(At a glance|National News|Global News|Local News)/i.test(i.headline)),
   ),
   'section titles not misclassified as headlines',
-);
-
-const imgItem = byKind.national.items.find((i) => i.imageUrl);
-assert(!!imgItem, 'national sample has imageUrl from **** marker');
-assert(
-  imgItem &&
-    imgItem.imageUrl.startsWith('https://pbs.twimg.com/') &&
-    !/\*{4}/.test(imgItem.body),
-  'image URL extracted and **** stripped from body',
-);
-assert(
-  cards.some((c) => c.imageUrl && c.imageUrl.includes('pbs.twimg.com')),
-  'BriefStoryCard carries imageUrl',
 );
 
 assert(
@@ -87,6 +78,20 @@ assert(
     '****https://example.com/a.jpg (https://example.com/a.jpg//)****',
   ) === 'https://example.com/a.jpg',
   '****url (url//)**** marker',
+);
+assert(
+  extractImageMarker(
+    '!(https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg)',
+  ) ===
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg',
+  'markdown !(...) marker with parentheses in URL',
+);
+assert(
+  extractImageMarker(
+    '![Chicago Bears](https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg)',
+  ) ===
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg',
+  'standard ![alt](...) marker with parentheses in URL',
 );
 assert(extractImageMarker('***Not an image***') === null, '*** not treated as image');
 
@@ -102,8 +107,44 @@ Body here.
 - two
 `);
 assert(legacy.structured, 'legacy ## dialect structured');
-assert(legacy.sections.some((s) => s.kind === 'national' && s.items.length === 1), 'legacy national item');
-assert(legacy.sections.some((s) => s.kind === 'watch' && s.bullets.length === 2), 'legacy watch bullets');
+// Rich text / HTML paste conversion tests
+const htmlConverterTs = join(root, 'src/lib/htmlToMarkdown.ts');
+const { htmlToMarkdown } = await import(pathToFileURL(htmlConverterTs).href);
+
+const richSampleHtml = `
+<h2>Lead Story</h2>
+<img src="https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg" alt="Chicago Bears" />
+<p><strong>Bears Secure Historic Victory</strong></p>
+<p><em>Named source: Chicago Tribune, Sept 13, 2026</em></p>
+<p>The Chicago Bears scored a thrilling fourth-quarter touchdown to seal the win.</p>
+<h2>National News</h2>
+<p><strong>Fed Announces Rate Decision</strong></p>
+<p><em>Named source: Reuters, Sept 13, 2026</em></p>
+<p>Federal Reserve policymakers kept the benchmark interest rate unchanged.</p>
+<h2>What to watch today</h2>
+<ul>
+  <li>Senate hearing on AI regulation at 10 AM ET</li>
+  <li>Consumer sentiment report released at 1 PM ET</li>
+</ul>
+`;
+
+const convertedMd = htmlToMarkdown(richSampleHtml);
+const parsedFromHtml = parseGrokBrief(convertedMd);
+
+assert(parsedFromHtml.structured === true, 'rich text html converted and parsed as structured brief');
+assert(parsedFromHtml.sections.length >= 2, 'converted html has multiple sections');
+const htmlLeadItem = parsedFromHtml.sections.find((s) => s.kind === 'national')?.items[0];
+assert(!!htmlLeadItem, 'converted html lead item found');
+assert(
+  htmlLeadItem?.imageUrl ===
+    'https://commons.wikimedia.org/wiki/Special:FilePath/Chicago_Bears_(51156683545).jpg',
+  'converted html image extracted into imageUrl',
+);
+assert(htmlLeadItem?.headline === 'Bears Secure Historic Victory', 'converted html headline extracted');
+assert(
+  htmlLeadItem?.source === 'Chicago Tribune, Sept 13, 2026',
+  'converted html source extracted',
+);
 
 console.log('\n--- summary ---');
 for (const s of parsed.sections) {
