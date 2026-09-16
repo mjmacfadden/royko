@@ -73,12 +73,15 @@ export function buildFlowUnits(editionEl: HTMLElement): {
     '.screen-only',
     '.screen-chrome',
     '.settings-dialog',
+    '.grok-paste-dialog',
     '.weather-widget-live',
     '.weatherwidget-io',
     '.feed-status-note',
     '.empty-column',
     '.page3-grid',
     '.answers-qr-url',
+    '.lead-image-controls',
+    '.lead-image-placeholder-box',
     'script',
     'iframe',
     'link',
@@ -478,7 +481,7 @@ function resolveOverflow(
   return false;
 }
 
-async function waitForAssets(root: ParentNode) {
+async function waitForAssets(root: ParentNode, timeoutMs = 400) {
   try {
     await document.fonts?.ready;
   } catch {
@@ -487,7 +490,7 @@ async function waitForAssets(root: ParentNode) {
   const imgs = Array.from(
     (root as Document | Element).querySelectorAll?.('img') || [],
   ) as HTMLImageElement[];
-  const pending = imgs.filter((img) => !img.complete);
+  const pending = imgs.filter((img) => !img.complete && img.src);
   if (!pending.length) return;
   await Promise.race([
     Promise.all(
@@ -499,7 +502,7 @@ async function waitForAssets(root: ParentNode) {
           }),
       ),
     ),
-    new Promise<void>((resolve) => window.setTimeout(resolve, 1600)),
+    new Promise<void>((resolve) => window.setTimeout(resolve, timeoutMs)),
   ]);
 }
 
@@ -794,8 +797,6 @@ export async function paginateEdition(options: { paperName?: string } = {}): Pro
       folio.innerHTML = `<span>${escapeHtml(paperName)}</span><span>Page ${n}</span>`;
     }
   });
-
-  await waitForAssets(host);
 
   return { pageCount: sheets.length };
 }

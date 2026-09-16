@@ -64,10 +64,13 @@ const { story } = Astro.props;
       <div class="lead-placeholder-form">
         <input
           type="url"
+          id="lead-image-url-input"
+          name="leadImageUrl"
           class="lead-image-url-input"
           data-lead-image-input
           placeholder="Enter direct image URL (https://...)..."
           aria-label="Lead image URL"
+          autocomplete="off"
           value={story.image || ''}
         />
         <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>

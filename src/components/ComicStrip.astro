@@ -1,5 +1,6 @@
 ---
 import type { ComicStripData } from '../data/types';
+import { isDisplayableNewYorkerCaption, isNewYorkerFeedId } from '../lib/comics';
 interface Props {
   comic: ComicStripData;
   slotIndex?: number;
@@ -9,6 +10,10 @@ const href = comic.link || comic.imageUrl || '';
 /** Print-friendly display: drop https:// and leading www. */
 const displayUrl = href.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
 const feedId = comic.feedId || comic.id.split('-')[0] || comic.id;
+const showNyCaption =
+  Boolean(comic.imageUrl) &&
+  isNewYorkerFeedId(feedId) &&
+  isDisplayableNewYorkerCaption(comic.caption, comic.title);
 ---
 <section
   class="comic-box"
@@ -38,6 +43,7 @@ const feedId = comic.feedId || comic.id.split('-')[0] || comic.id;
     ) : (
       <p class="comic-caption-only">{comic.caption}</p>
     )}
+    {showNyCaption ? <p class="comic-caption">{comic.caption}</p> : null}
     {href ? (
       <p class="comic-source">
         <a class="comic-source-url" href={href} target="_blank" rel="noopener noreferrer" data-fit-url>{displayUrl}</a>

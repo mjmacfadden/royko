@@ -2,10 +2,10 @@
 import type { JumbleEntry } from '../data/types';
 interface Props {
   puzzle: JumbleEntry;
-  /** Section heading — default "Jumble" */
+  /** Section heading — default "Jumble 1" */
   heading?: string;
 }
-const { puzzle, heading = 'Jumble' } = Astro.props;
+const { puzzle, heading = 'Jumble 1' } = Astro.props;
 const scrambledLetters = puzzle.scrambled.replace(/\s+/g, '').toUpperCase().split('');
 const answerLen = puzzle.answer.replace(/\s+/g, '').length;
 const answerBlanks = Array.from({ length: answerLen }, (_, i) => i);
