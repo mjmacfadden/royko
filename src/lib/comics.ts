@@ -133,6 +133,69 @@ function feedHomeUrl(feed: ComicFeedConfig): string {
     .replace(/\/rss\.xml$/i, '/');
 }
 
+/** Generic New Yorker RSS description — not the joke caption. */
+const NY_GENERIC_BLURB = 'A drawing that riffs on the latest news and happenings.';
+
+export function isNewYorkerFeedId(feedId: string | undefined | null): boolean {
+  if (!feedId) return false;
+  return feedId === 'newyorker-daily' || feedId.startsWith('newyorker');
+}
+
+/** True when caption is a real joke (not RSS blurb / feed title / empty). */
+export function isDisplayableNewYorkerCaption(
+  caption: string | undefined | null,
+  feedTitle?: string | null,
+): boolean {
+  const c = (caption || '').trim();
+  if (!c) return false;
+  if (c === NY_GENERIC_BLURB) return false;
+  if (feedTitle && c === feedTitle.trim()) return false;
+  return true;
+}
+
+function extractNewYorkerCaptionFromHtml(html: string): string | null {
+  const patterns = [
+    /<span[^>]*class="[^"]*caption__text[^"]*"[^>]*>([\s\S]*?)<\/span>/i,
+    /class="[^"]*responsive-cartoon__caption[^"]*"[^>]*>[\s\S]*?class="[^"]*caption__text[^"]*"[^>]*>([\s\S]*?)<\/span>/i,
+    /<div[^>]*class="[^"]*responsive-cartoon__caption[^"]*"[^>]*>[\s\S]*?<span[^>]*>([\s\S]*?)<\/span>/i,
+  ];
+  for (const re of patterns) {
+    const m = html.match(re);
+    if (!m?.[1]) continue;
+    const raw = decodeEntities(m[1])
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (raw && raw !== NY_GENERIC_BLURB) return raw.slice(0, 320);
+  }
+  return null;
+}
+
+async function enrichNewYorkerCaptions(strips: ComicStripData[]): Promise<void> {
+  await Promise.all(
+    strips.map(async (strip) => {
+      if (!strip.link) return;
+      try {
+        const res = await fetchWithCorsFallback(
+          strip.link,
+          {
+            headers: {
+              Accept: 'text/html,application/xhtml+xml,*/*',
+            },
+          },
+          6000,
+        );
+        if (!res.ok) return;
+        const html = await res.text();
+        const scraped = extractNewYorkerCaptionFromHtml(html);
+        if (scraped) strip.caption = scraped;
+      } catch {
+        // Keep RSS caption (often the generic blurb); UI will hide it.
+      }
+    }),
+  );
+}
+
 function itemToStrip(
   feed: ComicFeedConfig,
   item: Record<string, unknown>,
@@ -147,6 +210,7 @@ function itemToStrip(
     .replace(/\s+/g, ' ')
     .trim()
     .slice(0, 180);
+  // New Yorker RSS description is often a generic blurb; page scrape replaces it below.
   const publishedAt = pickPublishedAt(item);
   const keySuffix = (link || imageUrl).replace(/[^a-zA-Z0-9]/g, '').slice(-10) || String(index);
   const id = `${feed.id}-${index}-${keySuffix}`;
@@ -190,6 +254,9 @@ async function fetchFeedComics(feed: ComicFeedConfig, limit: number = 6): Promis
         idx++;
         if (strips.length >= limit) break;
       }
+    }
+    if (isNewYorkerFeedId(feed.id) && strips.length) {
+      await enrichNewYorkerCaptions(strips);
     }
     return strips;
   } catch {

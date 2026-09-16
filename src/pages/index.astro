@@ -86,7 +86,7 @@ const hasWireStories =
           images <code>![alt](https://…)</code> (also <code>!(url)</code>).
           Legacy <code>***</code> / <code>****url****</code> still work.
         </p>
-        <textarea id="grok-paste-quick" rows="16" placeholder="## Lead Story&#10;&#10;**Headline**&#10;*Named source: Outlet, Date*&#10;Body…"></textarea>
+        <textarea id="grok-paste-quick" name="grokPasteQuick" rows="16" placeholder="## Lead Story&#10;&#10;**Headline**&#10;*Named source: Outlet, Date*&#10;Body…"></textarea>
         <div class="grok-brief-actions">
           <button type="button" id="grok-paste-apply" class="primary-ish">Save &amp; compose</button>
           <button type="submit" value="cancel" id="grok-paste-close">Close</button>
@@ -192,7 +192,7 @@ const hasWireStories =
                   {puzzles.jumbles.map((j, i) => (
                     <JumblePuzzle
                       puzzle={j}
-                      heading={i === 0 ? 'Jumble' : `Jumble ${i + 1}`}
+                      heading={`Jumble ${i + 1}`}
                     />
                   ))}
                 </div>
@@ -271,6 +271,7 @@ const hasWireStories =
       } from '../lib/grokBrief';
       import { paginateEdition, getPageSheetCount, scrollToPageSheet } from '../lib/pageSheets';
       import { htmlToMarkdown } from '../lib/htmlToMarkdown';
+      import { applyEditionDate } from '../lib/applyEditionDate';
 
       const indicator = document.getElementById('page-indicator');
       const prevBtn = document.getElementById('prev-page') as HTMLButtonElement | null;
@@ -282,6 +283,7 @@ const hasWireStories =
       let current = 1;
       let paginateTimer = 0;
       let paginating = false;
+      let repaginateQueued = false;
 
       function applyPaperIdentity(name?: string, tagline?: string) {
         const cleanName = (name || 'The Daily Mike').trim();
@@ -308,22 +310,30 @@ const hasWireStories =
       }
 
       async function runPaginate() {
-        if (paginating) return;
+        if (paginating) {
+          repaginateQueued = true;
+          return;
+        }
         paginating = true;
+        repaginateQueued = false;
         try {
-          await fillPrintWeather(settings?.zip || '60062').catch(() => undefined);
           const paperUpper = (settings?.paperName || 'The Daily Mike').trim().toUpperCase();
           const result = await paginateEdition({ paperName: paperUpper });
           applyLeadImageState();
           fitComicSourceUrls();
           const total = result.pageCount || getPageSheetCount() || 1;
-          if (indicator) indicator.textContent = `Page ${Math.min(current, total)} / ${total}`;
+          current = Math.min(Math.max(current, 1), total);
+          if (indicator) indicator.textContent = `Page ${current} / ${total}`;
           if (prevBtn) prevBtn.disabled = current <= 1;
           if (nextBtn) nextBtn.disabled = current >= total;
         } catch (err) {
           console.error('[pageSheets]', err);
         } finally {
           paginating = false;
+          if (repaginateQueued) {
+            repaginateQueued = false;
+            schedulePaginate();
+          }
         }
       }
 
@@ -371,19 +381,23 @@ const hasWireStories =
 
       prevBtn?.addEventListener('click', () => showPage(current - 1));
       nextBtn?.addEventListener('click', () => showPage(current + 1));
-      printBtn?.addEventListener('click', () => {
-        void fillPrintWeather(settings?.zip || '60062').finally(() => {
-          window.print();
-        });
+      printBtn?.addEventListener('click', async () => {
+        if (!getPageSheetCount()) {
+          await runPaginate();
+        }
+        window.print();
       });
-      document.addEventListener('keydown', (e) => {
+      document.addEventListener('keydown', async (e) => {
         if ((e.metaKey || e.ctrlKey) && (e.key === 'p' || e.key === 'P')) {
           const t = e.target as HTMLElement | null;
           if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) {
             /* allow native print from form fields */
           } else {
             e.preventDefault();
-            void fillPrintWeather(settings?.zip || '60062').finally(() => window.print());
+            if (!getPageSheetCount()) {
+              await runPaginate();
+            }
+            window.print();
             return;
           }
         }
@@ -528,7 +542,7 @@ const hasWireStories =
               </div>
             </div>
             <div class="lead-placeholder-form">
-              <input type="url" class="lead-image-url-input" data-lead-image-input placeholder="Enter direct image URL (https://...)..." aria-label="Lead image URL" value="${escapeHtml(customUrl && customUrl !== '__none__' ? customUrl : (customUrl === '__none__' ? '' : displayUrl))}" />
+              <input type="url" id="lead-image-url-input" name="leadImageUrl" class="lead-image-url-input" data-lead-image-input placeholder="Enter direct image URL (https://...)..." aria-label="Lead image URL" autocomplete="off" value="${escapeHtml(customUrl && customUrl !== '__none__' ? customUrl : (customUrl === '__none__' ? '' : displayUrl))}" />
               <button type="button" class="lead-image-btn primary" data-lead-image-save>Apply</button>
               <button type="button" class="lead-image-btn" data-lead-image-cancel>Cancel</button>
             </div>
@@ -1379,6 +1393,28 @@ const hasWireStories =
         return escapeHtml(t).replace(/`/g, '&#96;');
       }
 
+      const NY_GENERIC_BLURB = 'A drawing that riffs on the latest news and happenings.';
+
+      function isNewYorkerFeedIdClient(feedId: string | undefined | null): boolean {
+        if (!feedId) return false;
+        return feedId === 'newyorker-daily' || feedId.startsWith('newyorker');
+      }
+
+      function shouldShowNyCaption(c: {
+        feedId?: string;
+        id: string;
+        title: string;
+        caption: string;
+        imageUrl?: string | null;
+      }): boolean {
+        const feedId = c.feedId || c.id.split('-')[0] || c.id;
+        const cap = (c.caption || '').trim();
+        if (!c.imageUrl || !isNewYorkerFeedIdClient(feedId) || !cap) return false;
+        if (cap === NY_GENERIC_BLURB) return false;
+        if (cap === (c.title || '').trim()) return false;
+        return true;
+      }
+
       function comicBoxHtml(
         c: {
           id: string;
@@ -1399,6 +1435,9 @@ const hasWireStories =
               <img class="comic-image" src="${escapeAttr(c.imageUrl)}" alt="${escapeAttr(c.title)} — ${escapeAttr(c.caption)}" loading="lazy" referrerpolicy="no-referrer" data-comic-img />
             </a>`
           : `<p class="comic-caption-only">${escapeHtml(c.caption)}</p>`;
+        const nyCaption = shouldShowNyCaption(c)
+          ? `<p class="comic-caption">${escapeHtml(c.caption)}</p>`
+          : '';
         const source = href
           ? `<p class="comic-source"><a class="comic-source-url" href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" data-fit-url>${escapeHtml(shortComicUrl(href))}</a></p>`
           : '';
@@ -1407,6 +1446,7 @@ const hasWireStories =
           <div class="comic-frame">
             <div class="comic-credit">${escapeHtml(c.credit)}${c.live === false ? ' <span class="comic-fallback-flag"> · feed fallback</span>' : ''}</div>
             ${img}
+            ${nyCaption}
             ${source}
             <div class="comic-cycle-controls" role="toolbar" aria-label="Change comic strip">
               <button type="button" class="comic-cycle-btn" data-comic-cycle="prev" title="Previous comic strip" aria-label="Previous comic strip">◂ Prev</button>
@@ -1488,6 +1528,26 @@ const hasWireStories =
         }
         if (link) {
           link.href = href || '#';
+        }
+
+        let captionEl = box.querySelector<HTMLParagraphElement>('.comic-caption');
+        if (shouldShowNyCaption(c)) {
+          if (!captionEl) {
+            captionEl = document.createElement('p');
+            captionEl.className = 'comic-caption';
+            const source = box.querySelector('.comic-source');
+            const frame = box.querySelector('.comic-frame');
+            if (source) {
+              source.before(captionEl);
+            } else if (frame) {
+              const controls = frame.querySelector('.comic-cycle-controls');
+              if (controls) controls.before(captionEl);
+              else frame.appendChild(captionEl);
+            }
+          }
+          captionEl.textContent = c.caption;
+        } else if (captionEl) {
+          captionEl.remove();
         }
 
         const srcUrl = box.querySelector<HTMLAnchorElement>('.comic-source-url');
@@ -1572,7 +1632,10 @@ const hasWireStories =
           const box = img.closest('.comic-box') as HTMLElement | null;
           if (!box) return;
           const failedId = box.dataset.comicId || '';
-          if (failedId) failedComicIds.add(failedId);
+          if (failedId) {
+            if (failedComicIds.has(failedId)) return;
+            failedComicIds.add(failedId);
+          }
           cycleComicSlot(box, 'next');
           applyComicVisibility(settings);
           schedulePaginate();
@@ -1895,10 +1958,13 @@ const hasWireStories =
 
       applyLeadImageState();
 
-      void applyWeather(settings.zip);
-      window.addEventListener('beforeprint', () => {
-        void fillPrintWeather(settings.zip || '60062');
+      // Static builds bake build-day puzzles/dates; refresh to America/Chicago today.
+      void applyEditionDate({
+        force: true,
+        onApplied: () => schedulePaginate(),
       });
+
+      void applyWeather(settings.zip);
       applyPaperIdentity(settings.paperName, settings.paperTagline);
       applyComicVisibility(settings);
       lastRss = {

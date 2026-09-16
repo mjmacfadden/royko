@@ -85,7 +85,7 @@ import { PAPER_NAME_UPPER, PAPER_TAGLINE } from '../../lib/site';
         jumbles.forEach((jumble, i) => {
           html += `
             <section class="answers-section">
-              <h2>${i === 0 ? 'Jumble' : `Jumble ${i + 1}`}</h2>
+              <h2>Jumble ${i + 1}</h2>
               <p class="answers-meta">${escapeHtml(jumble.clue)}</p>
               <p class="answers-scrambled">${escapeHtml(jumble.scrambled)}</p>
               <p class="answers-value"><strong>${escapeHtml(jumble.answer)}</strong></p>
